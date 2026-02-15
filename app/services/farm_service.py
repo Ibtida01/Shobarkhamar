@@ -49,9 +49,14 @@ class FarmService:
         
         db.add(farm)
         await db.commit()
-        await db.refresh(farm)
         
-        return farm
+        # ✅ FIX: Re-fetch with units eagerly loaded to avoid MissingGreenlet error
+        result = await db.execute(
+            select(Farm)
+            .options(selectinload(Farm.units))
+            .where(Farm.farm_id == farm.farm_id)
+        )
+        return result.scalar_one()
     
     @staticmethod
     async def update(db: AsyncSession, farm_id: UUID, farm_data: FarmUpdate) -> Farm:
@@ -62,9 +67,14 @@ class FarmService:
             setattr(farm, field, value)
         
         await db.commit()
-        await db.refresh(farm)
         
-        return farm
+        # ✅ FIX: Re-fetch with units eagerly loaded
+        result = await db.execute(
+            select(Farm)
+            .options(selectinload(Farm.units))
+            .where(Farm.farm_id == farm_id)
+        )
+        return result.scalar_one()
     
     @staticmethod
     async def delete(db: AsyncSession, farm_id: UUID) -> None:
@@ -92,23 +102,16 @@ class FarmUnitService:
         return unit
     
     @staticmethod
-    async def create(db: AsyncSession, owner_id: UUID, farm_data: FarmCreate) -> Farm:
-        """Create new farm"""
-        farm = Farm(
-            owner_id=owner_id,
-            **farm_data.dict()
-        )
-        db.add(farm)
+    async def create(db: AsyncSession, unit_data: FarmUnitCreate) -> FarmUnit:
+        """Create new farm unit"""
+        # ✅ FIX: Create FarmUnit, not Farm!
+        unit = FarmUnit(**unit_data.dict())
+        
+        db.add(unit)
         await db.commit()
-
-        # Re-fetch with units eagerly loaded to avoid MissingGreenlet error
-        farm_id = farm.farm_id
-        result = await db.execute(
-            select(Farm)
-            .options(selectinload(Farm.units))
-            .where(Farm.farm_id == farm_id)
-        )
-        return result.scalar_one()
+        await db.refresh(unit)
+        
+        return unit
     
     @staticmethod
     async def update(db: AsyncSession, unit_id: UUID, unit_data: FarmUnitUpdate) -> FarmUnit:
