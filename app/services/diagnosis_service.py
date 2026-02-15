@@ -85,9 +85,19 @@ class DiagnosisService:
                 db.add(diagnosis_symptom)
         
         await db.commit()
-        await db.refresh(diagnosis)
-        
-        return diagnosis
+
+        # Re-fetch with relationships eagerly loaded
+        diagnosis_id = diagnosis.diagnosis_id
+        result = await db.execute(
+            select(Diagnosis)
+            .options(
+                selectinload(Diagnosis.images),
+                selectinload(Diagnosis.symptoms),
+                selectinload(Diagnosis.final_disease)
+            )
+            .where(Diagnosis.diagnosis_id == diagnosis_id)
+        )
+        return result.scalar_one()
     
     @staticmethod
     async def update(

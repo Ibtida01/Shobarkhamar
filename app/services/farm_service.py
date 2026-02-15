@@ -92,15 +92,23 @@ class FarmUnitService:
         return unit
     
     @staticmethod
-    async def create(db: AsyncSession, unit_data: FarmUnitCreate) -> FarmUnit:
-        """Create new farm unit"""
-        unit = FarmUnit(**unit_data.dict())
-        
-        db.add(unit)
+    async def create(db: AsyncSession, owner_id: UUID, farm_data: FarmCreate) -> Farm:
+        """Create new farm"""
+        farm = Farm(
+            owner_id=owner_id,
+            **farm_data.dict()
+        )
+        db.add(farm)
         await db.commit()
-        await db.refresh(unit)
-        
-        return unit
+
+        # Re-fetch with units eagerly loaded to avoid MissingGreenlet error
+        farm_id = farm.farm_id
+        result = await db.execute(
+            select(Farm)
+            .options(selectinload(Farm.units))
+            .where(Farm.farm_id == farm_id)
+        )
+        return result.scalar_one()
     
     @staticmethod
     async def update(db: AsyncSession, unit_id: UUID, unit_data: FarmUnitUpdate) -> FarmUnit:
