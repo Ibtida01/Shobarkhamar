@@ -35,7 +35,7 @@ class FarmService:
         result = await db.execute(
             select(Farm)
             .options(selectinload(Farm.units))
-            .where(Farm.owner_id == owner_id)
+            .where(Farm.user_id == owner_id)
         )
         return result.scalars().all()
     
@@ -43,7 +43,7 @@ class FarmService:
     async def create(db: AsyncSession, owner_id: UUID, farm_data: FarmCreate) -> Farm:
         """Create new farm"""
         farm = Farm(
-            owner_id=owner_id,
+            user_id=owner_id,
             **farm_data.dict()
         )
         

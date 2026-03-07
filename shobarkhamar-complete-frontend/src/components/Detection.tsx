@@ -98,7 +98,7 @@ export function Detection() {
 
   const handleDiseaseOk = () => {
     setShowDiseaseModal(false);
-    if (result?.final_disease) {
+    if (result?.ai_result && !result.ai_result.is_healthy) {
       setShowTreatmentPromptModal(true);
     } else {
       handleReset();
@@ -110,9 +110,9 @@ export function Detection() {
     navigate('/treatment', {
       state: {
         type,
-        disease: result?.final_disease?.name,
-        fullName: result?.final_disease?.full_name,
-        treatment: result?.final_disease?.treatment,
+        disease: result?.ai_result?.disease_name,
+        severity: result?.ai_result?.severity,
+        confidence: result?.ai_result?.confidence_percent,
         image: selectedImage,
         diagnosisId: result?.diagnosis_id,
       },
@@ -125,7 +125,7 @@ export function Detection() {
     setShowSuccessModal(false); setShowDiseaseModal(false); setShowTreatmentPromptModal(false);
   };
 
-  const disease = result?.final_disease;
+  const disease = result?.ai_result;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
@@ -279,7 +279,7 @@ export function Detection() {
       {showDiseaseModal && result && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
-            {!disease ? (
+            {!disease || disease.is_healthy ? (
               <>
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
                   <CheckCircle className="h-10 w-10 text-green-600" />
@@ -294,9 +294,9 @@ export function Detection() {
                   <AlertCircle className="h-10 w-10 text-red-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Disease Detected</h3>
-                <p className="text-4xl font-bold text-red-600 mb-1">{disease.name ?? 'Unknown'}</p>
-                {disease.full_name && <p className="text-gray-600">{disease.full_name}</p>}
-                {disease.confidence != null && <p className="text-sm text-gray-500 mt-1">Confidence: {disease.confidence}%</p>}
+                <p className="text-4xl font-bold text-red-600 mb-1">{disease.disease_name}</p>
+                <p className="text-sm text-gray-500 mt-1">Confidence: {disease.confidence_percent}%</p>
+                <p className="text-sm font-medium text-orange-600 mt-1">Severity: {disease.severity}</p>
                 <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">OK</button>
               </>
             )}

@@ -19,12 +19,13 @@ function authHeaders(): Record<string, string> {
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
-    // Pydantic validation errors return detail as an array of objects
     if (Array.isArray(error.detail)) {
-      const messages = error.detail.map((e: { msg?: string; loc?: string[] }) => {
-        const field = e.loc ? e.loc[e.loc.length - 1] : '';
-        return field ? `${field}: ${e.msg}` : e.msg;
-      }).join(', ');
+      const messages = error.detail
+        .map((e: { msg?: string; loc?: string[] }) => {
+          const field = e.loc ? e.loc[e.loc.length - 1] : '';
+          return field ? `${field}: ${e.msg}` : e.msg;
+        })
+        .join(', ');
       throw new Error(messages);
     }
     throw new Error(error.detail || `HTTP ${res.status}`);
@@ -49,7 +50,6 @@ export interface LoginPayload {
   password: string;
 }
 
-// Matches TokenResponse schema from backend exactly
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;
@@ -61,18 +61,11 @@ export interface AuthResponse {
   };
 }
 
-// Backend expects JSON body (not form data) for both auth endpoints
 export async function registerUser(payload: RegisterPayload): Promise<AuthResponse> {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-      phone: payload.phone,
-      address: payload.address,
-    }),
+    body: JSON.stringify(payload),
   });
   return handleResponse<AuthResponse>(res);
 }
@@ -81,21 +74,18 @@ export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
   const res = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: payload.email,
-      password: payload.password,
-    }),
+    body: JSON.stringify(payload),
   });
   return handleResponse<AuthResponse>(res);
 }
 
 // ─────────────────────────────────────────────────────────────
-// FARMS  (needed to get farm_id before creating a diagnosis)
+// FARMS
 // ─────────────────────────────────────────────────────────────
 
 export interface Farm {
   farm_id: string;
-  farm_name: string;   // backend uses farm_name, not name
+  farm_name: string;
   farm_type: string;
   farm_status: string;
   address?: string;
@@ -123,7 +113,6 @@ export async function createFarm(data: FarmCreate): Promise<Farm> {
   return handleResponse<Farm>(res);
 }
 
-// GET /api/v1/farms returns { farms: [...], total: N } — not a plain array
 export async function getFarms(): Promise<Farm[]> {
   const res = await fetch(`${BASE_URL}/farms`, { headers: authHeaders() });
   const data = await handleResponse<FarmListResponse>(res);
@@ -132,26 +121,29 @@ export async function getFarms(): Promise<Farm[]> {
 
 // ─────────────────────────────────────────────────────────────
 // DIAGNOSIS / DETECTION
-//
-// Full endpoint paths:
-//   POST /api/v1/detection/analyze        ← step 1: create diagnosis (JSON)
-//   POST /api/v1/detection/{id}/images    ← step 2: upload image (multipart)
-//   GET  /api/v1/detection/history        ← fetch past diagnoses
 // ─────────────────────────────────────────────────────────────
 
-// Matches TargetSpecies enum in backend
 export type TargetSpecies = 'fish' | 'poultry';
 
-// Matches DiagnosisCreate schema exactly
 export interface DiagnosisCreate {
-  farm_id: string;                    // required — UUID of the user's farm
-  target_species: TargetSpecies;      // "FISH" or "POULTRY" (uppercase — matches backend enum)
-  unit_id?: string;                   // optional
-  symptoms_text?: string;             // optional free-text symptoms
-  symptom_ids?: string[];             // optional list of symptom UUIDs
+  farm_id: string;
+  target_species: TargetSpecies;
+  unit_id?: string;
+  symptoms_text?: string;
+  symptom_ids?: string[];
 }
 
-// Matches DiseaseResponse nested inside DiagnosisResponse
+// Structured AI result returned inline with the diagnosis
+export interface AIResult {
+  disease_code: string;
+  disease_name: string;
+  confidence: number;
+  confidence_percent: number;
+  severity: string;
+  is_healthy: boolean;
+  needs_treatment: boolean;
+}
+
 export interface DiseaseResult {
   disease_id?: string;
   name?: string;
@@ -165,20 +157,22 @@ export interface DiseaseResult {
   };
 }
 
-// Matches DiagnosisResponse schema exactly
 export interface DiagnosisResponse {
   diagnosis_id: string;
   user_id: string;
   farm_id: string;
   unit_id?: string;
   target_species: TargetSpecies;
-  status: string;                     // DiagnosisStatus enum from backend
+  status: string;
   symptoms_text?: string;
   final_disease_id?: string;
+  ai_confidence?: number;
+  ai_disease_code?: string;
+  ai_result?: AIResult;          // ← populated after image upload
   created_at: string;
   updated_at: string;
   images: { diagnosis_image_id: string; image_url: string; captured_at: string }[];
-  final_disease?: DiseaseResult;      // populated after AI analysis completes
+  final_disease?: DiseaseResult;
 }
 
 export interface ImageUploadResponse {
@@ -186,12 +180,9 @@ export interface ImageUploadResponse {
   image_url: string;
   diagnosis_id: string;
   captured_at: string;
+  diagnosis?: DiagnosisResponse; // ← full updated diagnosis with AI result
 }
 
-/**
- * Step 1: Create a diagnosis record
- * Requires farm_id — call getFarms() first to let user pick one
- */
 export async function createDiagnosis(data: DiagnosisCreate): Promise<DiagnosisResponse> {
   const res = await fetch(`${BASE_URL}/detection/analyze`, {
     method: 'POST',
@@ -201,29 +192,25 @@ export async function createDiagnosis(data: DiagnosisCreate): Promise<DiagnosisR
   return handleResponse<DiagnosisResponse>(res);
 }
 
-/**
- * Step 2: Upload the image for an existing diagnosis
- */
 export async function uploadDiagnosisImage(
   diagnosisId: string,
   file: File
 ): Promise<ImageUploadResponse> {
   const form = new FormData();
   form.append('file', file);
-
   const res = await fetch(`${BASE_URL}/detection/${diagnosisId}/images`, {
     method: 'POST',
-    headers: authHeaders(), // ← do NOT set Content-Type with FormData
+    headers: authHeaders(),
     body: form,
   });
   return handleResponse<ImageUploadResponse>(res);
 }
 
 /**
- * Full flow used by Detection component:
- *   1. Create diagnosis  →  get diagnosis_id
- *   2. Upload image
- *   3. Return result
+ * Full detection flow:
+ *   1. Create diagnosis record
+ *   2. Upload image → AI runs automatically on the backend
+ *   3. Return the updated DiagnosisResponse with ai_result populated
  */
 export async function analyzeImage(
   file: File,
@@ -238,9 +225,11 @@ export async function analyzeImage(
     symptom_ids: [],
   });
 
-  await uploadDiagnosisImage(diagnosis.diagnosis_id, file);
+  const uploadResult = await uploadDiagnosisImage(diagnosis.diagnosis_id, file);
 
-  return diagnosis;
+  // Return the full updated diagnosis from the upload response
+  // (includes ai_result if the model is loaded)
+  return uploadResult.diagnosis ?? diagnosis;
 }
 
 // ─────────────────────────────────────────────────────────────

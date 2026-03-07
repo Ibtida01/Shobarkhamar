@@ -61,7 +61,7 @@ class DiseaseDetector:
         print(f"Loading model on device: {self.device}")
         
         # Load checkpoint
-        checkpoint = torch.load(model_path, map_location=self.device)
+        checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
         
         # Extract metadata
         self.num_classes = checkpoint.get('num_classes', 4)

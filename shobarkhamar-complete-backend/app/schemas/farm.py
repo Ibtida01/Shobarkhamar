@@ -54,7 +54,7 @@ class FarmUpdate(BaseModel):
 
 class FarmResponse(FarmBase):
     farm_id: UUID
-    owner_id: UUID
+    user_id: UUID
     farm_status: FarmStatus
     created_at: datetime
     units: List[FarmUnitResponse] = []
