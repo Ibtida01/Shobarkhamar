@@ -8,36 +8,46 @@ from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.routers import auth, farms, diseases, diagnosis
 
-# ── AI Model ──────────────────────────────────────────────────
+# ── AI Models ─────────────────────────────────────────────────
 try:
     from app.ai_model import DiseaseDetector
-    AI_AVAILABLE = True
+    FISH_AI_AVAILABLE = True
 except ImportError:
-    AI_AVAILABLE = False
+    FISH_AI_AVAILABLE = False
 
-MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/best_B4_wiener_False.pth")
+try:
+    from app.poultry_model import PoultryDiseaseDetector
+    POULTRY_AI_AVAILABLE = True
+except ImportError:
+    POULTRY_AI_AVAILABLE = False
+
+FISH_MODEL_PATH    = os.getenv("MODEL_PATH",         "/app/models/best_B4_wiener_False.pth")
+POULTRY_MODEL_PATH = os.getenv("POULTRY_MODEL_PATH", "/app/models/efficientnetv2_b4_best.pth")
+
+
+def _load_model(available, cls, path, label):
+    if not available:
+        print(f"⚠️  {label} module not importable — skipping")
+        return None
+    if not os.path.exists(path):
+        print(f"⚠️  {label} model not found at {path} — running without AI inference")
+        return None
+    try:
+        m = cls(path)
+        print(f"✓ {label} model loaded from: {path}")
+        return m
+    except Exception as e:
+        print(f"⚠️  {label} model failed to load: {e}")
+        return None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup / shutdown lifecycle"""
-    # Database
     await init_db()
-
-    # Upload directory
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-    # AI model — optional, graceful degradation if .pth not present
-    if AI_AVAILABLE and os.path.exists(MODEL_PATH):
-        try:
-            app.state.ai_detector = DiseaseDetector(MODEL_PATH)
-            print(f"✓ AI model loaded from: {MODEL_PATH}")
-        except Exception as e:
-            app.state.ai_detector = None
-            print(f"⚠️  AI model failed to load: {e}")
-    else:
-        app.state.ai_detector = None
-        print(f"⚠️  AI model not found at {MODEL_PATH} — running without AI inference")
+    app.state.ai_detector      = _load_model(FISH_AI_AVAILABLE,    DiseaseDetector,        FISH_MODEL_PATH,    "Fish")
+    app.state.poultry_detector = _load_model(POULTRY_AI_AVAILABLE, PoultryDiseaseDetector, POULTRY_MODEL_PATH, "Poultry")
 
     yield
 
@@ -49,7 +59,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.API_VERSION,
     description="AI-powered disease detection system for fish and poultry farms",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -81,8 +91,8 @@ async def health_check():
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
         "version": settings.API_VERSION,
-        "ai_model_loaded": app.state.ai_detector is not None,
-        "model_path": MODEL_PATH if app.state.ai_detector is not None else None,
+        "fish_model_loaded":    app.state.ai_detector is not None,
+        "poultry_model_loaded": app.state.poultry_detector is not None,
     }
 
 
@@ -92,7 +102,8 @@ async def about():
         "project": settings.APP_NAME,
         "description": "AI-powered disease detection system for fish and poultry farms",
         "version": settings.API_VERSION,
-        "ai_enabled": app.state.ai_detector is not None,
+        "fish_ai_enabled":    app.state.ai_detector is not None,
+        "poultry_ai_enabled": app.state.poultry_detector is not None,
     }
 
 

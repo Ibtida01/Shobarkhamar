@@ -1,7 +1,8 @@
-// Mock disease detection logic
-// In production, this would call an actual AI/ML API
+// Real disease detection — calls Shobarkhamar backend API
 
-interface DetectionResult {
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+
+export interface DetectionResult {
   isHealthy: boolean;
   disease?: string;
   confidence: number;
@@ -11,218 +12,66 @@ interface DetectionResult {
     medication: string[];
     prevention: string[];
   };
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
+  raw?: object; // full API response for debugging
 }
 
-const fishDiseases = [
-  {
-    name: 'Ichthyophthirius (Ich / White Spot Disease)',
-    confidence: 87,
-    symptoms: [
-      'White spots covering body and fins',
-      'Fish rubbing against objects',
-      'Rapid gill movement',
-      'Loss of appetite',
-    ],
-    treatment: {
-      immediate: [
-        'Isolate affected fish immediately',
-        'Raise water temperature to 82-86°F gradually',
-        'Increase aeration in tank',
-      ],
-      medication: [
-        'Apply aquarium salt (1 tablespoon per 5 gallons)',
-        'Use copper-based medication as per instructions',
-        'Consider malachite green treatment',
-      ],
-      prevention: [
-        'Quarantine new fish for 2-3 weeks',
-        'Maintain optimal water quality',
-        'Avoid overcrowding',
-        'Regular water changes (25% weekly)',
-      ],
-    },
-    severity: 'high' as const,
-  },
-  {
-    name: 'Columnaris (Cotton Wool Disease)',
-    confidence: 82,
-    symptoms: [
-      'White/gray patches on body',
-      'Frayed or deteriorating fins',
-      'Lesions around mouth and gills',
-      'Lethargy and loss of color',
-    ],
-    treatment: {
-      immediate: [
-        'Improve water quality immediately',
-        'Reduce stress factors',
-        'Lower water temperature slightly',
-      ],
-      medication: [
-        'Antibiotic treatment (Kanamycin or Nitrofurazone)',
-        'Salt baths (1% solution for 10-15 minutes)',
-        'Oxytetracycline in food',
-      ],
-      prevention: [
-        'Maintain clean water conditions',
-        'Avoid injuries and stress',
-        'Proper nutrition',
-        'Regular tank maintenance',
-      ],
-    },
-    severity: 'medium' as const,
-  },
-  {
-    name: 'Fin Rot',
-    confidence: 79,
-    symptoms: [
-      'Ragged, frayed fin edges',
-      'Discoloration of fins (white/red)',
-      'Fins appear shorter',
-      'Inflammation at fin base',
-    ],
-    treatment: {
-      immediate: [
-        'Perform 50% water change',
-        'Remove any sharp decorations',
-        'Isolate severely affected fish',
-      ],
-      medication: [
-        'Antibacterial medication (API Fin and Body Cure)',
-        'Aquarium salt treatment',
-        'Methylene blue baths',
-      ],
-      prevention: [
-        'Maintain excellent water quality',
-        'Avoid fin-nipping tank mates',
-        'Regular monitoring',
-        'Balanced diet with vitamins',
-      ],
-    },
-    severity: 'low' as const,
-  },
-];
+function getToken(): string | null {
+  // Adjust this key to wherever your app stores the JWT
+  return localStorage.getItem("access_token");
+}
 
-const poultryDiseases = [
-  {
-    name: 'Coccidiosis',
-    confidence: 91,
-    symptoms: [
-      'Bloody or dark-colored droppings',
-      'Dehydration and weakness',
-      'Ruffled feathers',
-      'Reduced appetite and weight loss',
-    ],
-    treatment: {
-      immediate: [
-        'Isolate affected birds',
-        'Ensure constant access to clean water',
-        'Keep housing clean and dry',
-      ],
-      medication: [
-        'Amprolium medication in water (follow dosage)',
-        'Sulfadimethoxine treatment',
-        'Vitamin K supplements',
-      ],
-      prevention: [
-        'Maintain dry, clean bedding',
-        'Use medicated starter feed for chicks',
-        'Proper ventilation in coop',
-        'Regular cleaning and disinfection',
-      ],
-    },
-    severity: 'high' as const,
-  },
-  {
-    name: 'Newcastle Disease',
-    confidence: 85,
-    symptoms: [
-      'Greenish, watery droppings',
-      'Respiratory distress',
-      'Neurological signs (twisted neck)',
-      'Decreased egg production',
-    ],
-    treatment: {
-      immediate: [
-        'Quarantine flock immediately',
-        'Contact veterinary authorities',
-        'Improve biosecurity measures',
-      ],
-      medication: [
-        'No specific treatment available',
-        'Supportive care with vitamins',
-        'Antibiotics for secondary infections',
-      ],
-      prevention: [
-        'Vaccination program (essential)',
-        'Strict biosecurity protocols',
-        'Limit visitor access',
-        'Proper sanitation',
-      ],
-    },
-    severity: 'high' as const,
-  },
-  {
-    name: 'Infectious Bronchitis',
-    confidence: 78,
-    symptoms: [
-      'Watery droppings with white urates',
-      'Respiratory symptoms',
-      'Decreased egg production',
-      'Poor egg shell quality',
-    ],
-    treatment: {
-      immediate: [
-        'Improve ventilation',
-        'Reduce stress factors',
-        'Provide warm, dry environment',
-      ],
-      medication: [
-        'No specific cure available',
-        'Antibiotics for secondary bacterial infections',
-        'Vitamin and electrolyte supplements',
-      ],
-      prevention: [
-        'Vaccination (multiple strains)',
-        'All-in, all-out management',
-        'Biosecurity measures',
-        'Avoid mixing age groups',
-      ],
-    },
-    severity: 'medium' as const,
-  },
-];
+function mapSeverity(severity: string): "low" | "medium" | "high" {
+  const s = severity?.toUpperCase();
+  if (s === "CRITICAL" || s === "HIGH") return "high";
+  if (s === "MEDIUM") return "medium";
+  return "low";
+}
 
-export function detectDisease(type: 'fish' | 'poultry'): DetectionResult {
-  // Simulate random detection
-  const random = Math.random();
-  
-  // 20% chance of being healthy
-  if (random < 0.2) {
-    return {
-      isHealthy: true,
-      confidence: Math.floor(Math.random() * 10) + 90,
-      symptoms: [],
-      treatment: {
-        immediate: [],
-        medication: [],
-        prevention: [],
-      },
-      severity: 'low',
-    };
-  }
-  
-  // 80% chance of disease detection
-  const diseases = type === 'fish' ? fishDiseases : poultryDiseases;
-  const selectedDisease = diseases[Math.floor(Math.random() * diseases.length)];
-  
+/** Map raw API response → DetectionResult */
+function mapApiResponse(data: any): DetectionResult {
+  const primary = data.primary_prediction;
+  const isHealthy: boolean = data.is_healthy ?? false;
+
   return {
-    isHealthy: false,
-    disease: selectedDisease.name,
-    confidence: selectedDisease.confidence,
-    symptoms: selectedDisease.symptoms,
-    treatment: selectedDisease.treatment,
-    severity: selectedDisease.severity,
+    isHealthy,
+    disease: isHealthy ? undefined : primary.disease_name,
+    confidence: Math.round((primary.confidence ?? 0) * 100),
+    severity: mapSeverity(primary.severity),
+    // API doesn't return per-image symptoms/treatment — leave empty for now
+    // so the rest of your UI still renders without crashing
+    symptoms: [],
+    treatment: { immediate: [], medication: [], prevention: [] },
+    raw: data,
   };
+}
+
+export async function detectDisease(
+  type: "fish" | "poultry",
+  imageFile: File
+): Promise<DetectionResult> {
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated. Please log in.");
+
+  const endpoint =
+    type === "poultry"
+      ? `${API_BASE}/detection/poultry/predict`
+      : `${API_BASE}/detection/fish/predict`;
+
+  const form = new FormData();
+  form.append("file", imageFile);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  return mapApiResponse(data);
 }
