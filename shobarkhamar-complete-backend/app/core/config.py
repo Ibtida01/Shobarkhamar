@@ -57,7 +57,8 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "noreply@shobarkhamar.com"
     
     # AI/ML
-    MODEL_PATH: str = "./models"
+    MODEL_PATH: str = "./models/best_B4_wiener_False.pth"       # fish
+    POULTRY_MODEL_PATH: str = "./models/efficientnetv2_b4_best.pth"  # ← ADD THIS
     MODEL_VERSION: str = "1.0.0"
     
     class Config:

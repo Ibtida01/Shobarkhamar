@@ -133,7 +133,6 @@ export interface DiagnosisCreate {
   symptom_ids?: string[];
 }
 
-// Structured AI result returned inline with the diagnosis
 export interface AIResult {
   disease_code: string;
   disease_name: string;
@@ -168,7 +167,7 @@ export interface DiagnosisResponse {
   final_disease_id?: string;
   ai_confidence?: number;
   ai_disease_code?: string;
-  ai_result?: AIResult;          // ← populated after image upload
+  ai_result?: AIResult;
   created_at: string;
   updated_at: string;
   images: { diagnosis_image_id: string; image_url: string; captured_at: string }[];
@@ -180,7 +179,7 @@ export interface ImageUploadResponse {
   image_url: string;
   diagnosis_id: string;
   captured_at: string;
-  diagnosis?: DiagnosisResponse; // ← full updated diagnosis with AI result
+  diagnosis?: DiagnosisResponse;
 }
 
 export async function createDiagnosis(data: DiagnosisCreate): Promise<DiagnosisResponse> {
@@ -194,11 +193,15 @@ export async function createDiagnosis(data: DiagnosisCreate): Promise<DiagnosisR
 
 export async function uploadDiagnosisImage(
   diagnosisId: string,
-  file: File
+  file: File,
+  species: TargetSpecies = 'fish'
 ): Promise<ImageUploadResponse> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${BASE_URL}/detection/${diagnosisId}/images`, {
+  const endpoint = species.toLowerCase() === 'poultry'
+    ? `${BASE_URL}/detection/${diagnosisId}/images/poultry`
+    : `${BASE_URL}/detection/${diagnosisId}/images/fish`;
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
@@ -206,12 +209,6 @@ export async function uploadDiagnosisImage(
   return handleResponse<ImageUploadResponse>(res);
 }
 
-/**
- * Full detection flow:
- *   1. Create diagnosis record
- *   2. Upload image → AI runs automatically on the backend
- *   3. Return the updated DiagnosisResponse with ai_result populated
- */
 export async function analyzeImage(
   file: File,
   species: TargetSpecies,
@@ -225,10 +222,8 @@ export async function analyzeImage(
     symptom_ids: [],
   });
 
-  const uploadResult = await uploadDiagnosisImage(diagnosis.diagnosis_id, file);
+  const uploadResult = await uploadDiagnosisImage(diagnosis.diagnosis_id, file, species);
 
-  // Return the full updated diagnosis from the upload response
-  // (includes ai_result if the model is loaded)
   return uploadResult.diagnosis ?? diagnosis;
 }
 
