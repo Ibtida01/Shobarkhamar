@@ -15,7 +15,7 @@ try:
 except ImportError:
     AI_AVAILABLE = False
 
-MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/vgg16_disease_classifier.pth")
+MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/best_B4_wiener_False.pth")
 
 
 @asynccontextmanager

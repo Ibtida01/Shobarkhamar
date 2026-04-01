@@ -20,7 +20,7 @@ RUN pip install --upgrade pip && \
 
 # Pre-download VGG16 base weights into the image at build time
 # so it never re-downloads at runtime
-RUN python -c "from torchvision.models import vgg16, VGG16_Weights; vgg16(weights=VGG16_Weights.DEFAULT)"
+RUN python -c "from torchvision.models import efficientnet_b4, EfficientNet_B4_Weights; efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)"
 
 COPY . .
 
