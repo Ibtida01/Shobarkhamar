@@ -91,8 +91,8 @@ async def health_check():
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
         "version": settings.API_VERSION,
-        "fish_model_loaded":    app.state.ai_detector is not None,
-        "poultry_model_loaded": app.state.poultry_detector is not None,
+        "fish_model_loaded":    getattr(app.state, "ai_detector", None) is not None,
+        "poultry_model_loaded": getattr(app.state, "poultry_detector", None) is not None,
     }
 
 
@@ -102,8 +102,8 @@ async def about():
         "project": settings.APP_NAME,
         "description": "AI-powered disease detection system for fish and poultry farms",
         "version": settings.API_VERSION,
-        "fish_ai_enabled":    app.state.ai_detector is not None,
-        "poultry_ai_enabled": app.state.poultry_detector is not None,
+        "fish_ai_enabled":    getattr(app.state, "ai_detector", None) is not None,
+        "poultry_ai_enabled": getattr(app.state, "poultry_detector", None) is not None,
     }
 
 
