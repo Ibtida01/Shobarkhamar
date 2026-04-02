@@ -50,7 +50,9 @@ jobs:
           cache-dependency-path: shobarkhamar-complete-backend/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx aiosqlite
 
       - name: Create .env for tests
         run: |
