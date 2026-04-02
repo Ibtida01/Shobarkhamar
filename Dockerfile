@@ -32,4 +32,4 @@ EXPOSE 8000
 # DEBUG — shows what's inside /app so we can fix the path
 RUN echo "=== /app contents ===" && ls -la /app/ && echo "=== /app/app ===" && ls /app/app/ 2>/dev/null || echo "NO /app/app FOUND"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "7"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
