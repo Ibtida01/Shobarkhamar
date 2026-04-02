@@ -9,6 +9,8 @@ engine = create_async_engine(
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_pre_ping=True,
+    pool_timeout=30,       # don't wait forever for a connection
+    pool_recycle=1800,     # recycle connections every 30 min to avoid stale ones
 )
 
 # Create async session factory
