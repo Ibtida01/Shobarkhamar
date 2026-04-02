@@ -2,8 +2,8 @@ import os
 import gdown
 
 MODELS = {
-    "best_B4_wiener_False.pth":   "https://drive.google.com/file/d/1LE9uBQDMPULaNxOu_SKl4fTRqoykNSVo/view?usp=drive_link",
-    "efficientnetv2_b4_best.pth": "https://drive.google.com/file/d/1TTo-GUvJ-m9qf3Dk3Gux0mMT-7Ev6ydI/view?usp=drive_link",
+    "best_B4_wiener_False.pth":   "1LE9uBQDMPULaNxOu_SKl4fTRqoykNSVo",
+    "efficientnetv2_b4_best.pth": "1TTo-GUvJ-m9qf3Dk3Gux0mMT-7Ev6ydI",
 }
 
 os.makedirs("/app/models", exist_ok=True)
