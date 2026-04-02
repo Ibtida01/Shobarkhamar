@@ -61,20 +61,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true,
-    // ✅ PROXY: forwards all requests to FastAPI (no rewriting — backend uses /api/v1/ prefix natively)
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
-        // No rewrite! Backend routes are already /api/v1/auth/... etc.
       },
       '/health': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-      '/uploads': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
