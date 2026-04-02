@@ -16,11 +16,14 @@ COPY shobarkhamar-complete-backend/requirements.txt .
 
 RUN pip install --upgrade pip && \
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install gdown
 
 RUN python -c "from torchvision.models import efficientnet_b4, EfficientNet_B4_Weights; efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)"
 
 COPY shobarkhamar-complete-backend/ .
+
+RUN python download_models.py
 
 RUN mkdir -p /app/uploads /app/logs
 
