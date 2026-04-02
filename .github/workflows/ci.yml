@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx aiosqlite
+          pip install pytest pytest-asyncio httpx aiosqlite email-validator
 
       - name: Create .env for tests
         run: |
