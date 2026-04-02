@@ -6,13 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  IMAGE_NAME: shobarkhamar-backend
-
 jobs:
-  # ─── 1. Lint + Test ──────────────────────────────────────────
-  test:
-    name: Lint & Test
+  # ─── 1. Test Backend ──────────────────────────────────────────
+  test-backend:
+    name: Backend Tests
     runs-on: ubuntu-latest
 
     services:
@@ -66,7 +63,7 @@ jobs:
           PORT=8000
           DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/shobarkhamar_test
           DATABASE_POOL_SIZE=5
-          DATABASE_MAX_OVERFLOW=0
+          DATABASE_MAX_OVERFLOW=10
           REDIS_URL=redis://localhost:6379/0
           REDIS_PASSWORD=
           REDIS_DB=0
@@ -91,37 +88,38 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
-  # ─── 2. Build & Push Docker image ────────────────────────────
-  build:
-    name: Build Docker Image
+  # ─── 2. Test Frontend ─────────────────────────────────────────
+  test-frontend:
+    name: Frontend Build Check
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    defaults:
+      run:
+        working-directory: shobarkhamar-complete-frontend
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: shobarkhamar-complete-frontend/package-lock.json
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./shobarkhamar-complete-backend
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Install dependencies
+        run: npm install
 
-  # ─── 3. Deploy to Railway ────────────────────────────────────
-  deploy:
-    name: Deploy to Railway
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://shobarkhamar-production.up.railway.app
+
+  # ─── 3. Deploy Backend to Railway ────────────────────────────
+  deploy-backend:
+    name: Deploy Backend
     runs-on: ubuntu-latest
-    needs: build
+    needs: [test-backend, test-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -130,9 +128,29 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Deploy
+      - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service backend --detach
+
+  # ─── 4. Deploy Frontend to Vercel ────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          cd shobarkhamar-complete-backend
-          railway up --service backend --detach
+          cd shobarkhamar-complete-frontend
+          vercel --prod --token $VERCEL_TOKEN
