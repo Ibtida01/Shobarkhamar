@@ -97,13 +97,13 @@ export function Detection() {
   const handleSuccessOk = () => { setShowSuccessModal(false); setShowDiseaseModal(true); };
 
   const handleDiseaseOk = () => {
-    setShowDiseaseModal(false);
-    if (result?.ai_result && !result.ai_result.is_healthy) {
-      setShowTreatmentPromptModal(true);
-    } else {
-      handleReset();
-    }
-  };
+      setShowDiseaseModal(false);
+      if (result?.ai_result && !isActuallyHealthy) {
+        setShowTreatmentPromptModal(true);
+      } else {
+        handleReset();
+      }
+    };
 
   const handleTreatmentYes = () => {
     setShowTreatmentPromptModal(false);
@@ -126,7 +126,24 @@ export function Detection() {
   };
 
   const disease = result?.ai_result;
+  const HEALTHY_CODES = new Set([
+    'healthy', 'healthy_fish', 'healthy fish',
+    'non_poultry', 'not_fish', 'not fish', 'non poultry',
+  ]);
 
+  const isActuallyHealthy =
+    !disease ||
+    disease.is_healthy ||
+    HEALTHY_CODES.has(disease.disease_code?.toLowerCase()) ||
+    HEALTHY_CODES.has(disease.disease_name?.toLowerCase());
+
+  const severityColor = (s: string) => {
+    const u = s?.toUpperCase();
+    if (u === 'CRITICAL') return 'text-purple-700';
+    if (u === 'HIGH') return 'text-red-600';
+    if (u === 'MEDIUM') return 'text-orange-600';
+    return 'text-yellow-600';
+  };
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
@@ -276,33 +293,37 @@ export function Detection() {
       )}
 
       {/* Disease Result Modal */}
-      {showDiseaseModal && result && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
-            {!disease || disease.is_healthy ? (
-              <>
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                  <CheckCircle className="h-10 w-10 text-green-600" />
+            {showDiseaseModal && result && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
+                  {isActuallyHealthy ? (
+                    <>
+                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                        <CheckCircle className="h-10 w-10 text-green-600" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">All Clear!</h3>
+                      <p className="text-gray-600 mb-6">No disease detected. Your animal appears healthy.</p>
+                      <button onClick={handleDiseaseOk} className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">OK</button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                        <AlertCircle className="h-10 w-10 text-red-600" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-3">Disease Detected</h3>
+                      <p className="text-xl font-bold text-red-600 mb-2 break-words leading-tight px-2">
+                        {disease.disease_name}
+                      </p>
+                      <p className="text-sm text-gray-500">Confidence: {disease.confidence_percent}%</p>
+                      <p className={`text-sm font-semibold mt-1 ${severityColor(disease.severity)}`}>
+                        Severity: {disease.severity}
+                      </p>
+                      <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">OK</button>
+                    </>
+                  )}
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">All Clear!</h3>
-                <p className="text-gray-600 mb-6">No disease detected. Your animal appears healthy.</p>
-                <button onClick={handleDiseaseOk} className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">OK</button>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                  <AlertCircle className="h-10 w-10 text-red-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Disease Detected</h3>
-                <p className="text-4xl font-bold text-red-600 mb-1">{disease.disease_name}</p>
-                <p className="text-sm text-gray-500 mt-1">Confidence: {disease.confidence_percent}%</p>
-                <p className="text-sm font-medium text-orange-600 mt-1">Severity: {disease.severity}</p>
-                <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">OK</button>
-              </>
+              </div>
             )}
-          </div>
-        </div>
-      )}
 
       {/* Treatment Prompt Modal */}
       {showTreatmentPromptModal && (
