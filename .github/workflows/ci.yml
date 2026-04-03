@@ -136,7 +136,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel --prod --token $VERCEL_TOKEN --cwd shobarkhamar-complete-frontend --yes
+          vercel --prod --token $VERCEL_TOKEN --yes
 
   # ─── 4. Notify Railway Deploy ────────────────────────────────
   notify-railway:
