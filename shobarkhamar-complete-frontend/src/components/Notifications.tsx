@@ -7,6 +7,12 @@ import {
 } from 'lucide-react';
 import { getHistory, getToken } from '../services/api';
 import type { DiagnosisResponse } from '../services/api';
+import {
+  DISMISSED_STORAGE_KEY,
+  getStoredIds,
+  READ_STORAGE_KEY,
+  storeIds,
+} from '../utils/notifications';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,14 +27,48 @@ interface Notification {
   read: boolean;
   diagnosisId?: string;
   species?: 'fish' | 'poultry';
+  diseaseName?: string;
+  confidencePercent?: number;
+  severity?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function diagnosisToNotification(d: DiagnosisResponse): Notification {
-  const isHealthy = !d.ai_result || d.ai_result.is_healthy;
   const species = d.target_species?.toLowerCase().includes('poultry') ? 'poultry' : 'fish';
   const date = new Date(d.created_at);
+  const code = d.ai_result?.disease_code ?? d.ai_disease_code ?? '';
+  const normalizedCode = code.toLowerCase().replace(/[\s-]+/g, '_');
+  const confidencePercent = d.ai_result?.confidence_percent ?? ((d.ai_confidence ?? 0) * 100);
+
+  const diseaseNameMap: Record<string, string> = {
+    healthy: species === 'poultry' ? 'Healthy Poultry' : 'Healthy Fish',
+    non_poultry: 'Non Poultry',
+    not_fish: 'Not Fish',
+    cocci: 'Coccidiosis',
+    ncd: 'Newcastle Disease',
+    salmo: 'Salmonellosis',
+    new_castle_disease: 'Newcastle Disease',
+    salmonella: 'Salmonellosis',
+    coccidiosis: 'Coccidiosis',
+    bacterial_red_disease: 'Bacterial Red Disease',
+    bacterial_gill_disease: 'Bacterial Gill Disease',
+    fungal_diseases_saprolegniasis: 'Saprolegniasis',
+    parasitic_diseases: 'Parasitic Disease',
+    viral_diseases_white_tail_disease: 'White Tail Disease',
+  };
+
+  const healthyCodes = new Set(['', 'healthy', 'healthy_fish', 'non_poultry', 'not_fish']);
+  const isHealthy = d.ai_result
+    ? d.ai_result.is_healthy
+    : healthyCodes.has(normalizedCode);
+
+  const name =
+    d.ai_result?.disease_name ??
+    diseaseNameMap[normalizedCode] ??
+    (code ? code.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : 'Unknown Disease');
+
+  const sev = d.ai_result?.severity ?? (confidencePercent >= 80 ? 'HIGH' : confidencePercent >= 60 ? 'MEDIUM' : 'LOW');
 
   if (isHealthy) {
     return {
@@ -43,19 +83,18 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
     };
   }
 
-  const name = d.ai_result?.disease_name ?? 'Unknown Disease';
-  const pct = d.ai_result?.confidence_percent ?? 0;
-  const sev = d.ai_result?.severity ?? 'LOW';
-
   return {
     id: d.diagnosis_id,
     kind: 'disease',
     title: `Disease Detected — ${name}`,
-    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample shows ${name} (${pct.toFixed(1)}% confidence, severity: ${sev}). View treatment recommendations.`,
+    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample shows ${name} (${confidencePercent.toFixed(1)}% confidence, severity: ${sev}). View treatment recommendations.`,
     timestamp: date,
     read: false,
     diagnosisId: d.diagnosis_id,
     species,
+    diseaseName: name,
+    confidencePercent,
+    severity: sev,
   };
 }
 
@@ -146,16 +185,32 @@ export function Notifications() {
     }
 
     try {
+      const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
+      const dismissedIds = new Set(getStoredIds(DISMISSED_STORAGE_KEY));
       const data = await getHistory(0, 50);
-      const fromApi = data.diagnoses.map(diagnosisToNotification);
+      const fromApi = data.diagnoses.map(d => {
+        const notification = diagnosisToNotification(d);
+        return { ...notification, read: readIds.has(notification.id) };
+      });
+      const systemNotifications = SYSTEM_NOTIFICATIONS
+        .map(n => ({ ...n, read: readIds.has(n.id) ? true : n.read }))
+        .filter(n => !dismissedIds.has(n.id));
       // Merge: API results first, then system notifs (deduplicated)
-      const merged = [...fromApi, ...SYSTEM_NOTIFICATIONS].sort(
+      const merged = [...fromApi, ...systemNotifications]
+        .filter(n => !dismissedIds.has(n.id))
+        .sort(
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
       setNotifications(merged);
     } catch (err) {
       setError('Could not load notifications. Check your connection.');
-      setNotifications(SYSTEM_NOTIFICATIONS);
+      const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
+      const dismissedIds = new Set(getStoredIds(DISMISSED_STORAGE_KEY));
+      setNotifications(
+        SYSTEM_NOTIFICATIONS
+          .map(n => ({ ...n, read: readIds.has(n.id) ? true : n.read }))
+          .filter(n => !dismissedIds.has(n.id))
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -171,14 +226,23 @@ export function Notifications() {
     navigate('/');
   };
 
-  const markAsRead = (id: string) =>
+  const markAsRead = (id: string) => {
+    const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
+    readIds.add(id);
+    storeIds(READ_STORAGE_KEY, Array.from(readIds));
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
 
-  const markAllRead = () =>
+  const markAllRead = () => {
+    const allIds = notifications.map(n => n.id);
+    storeIds(READ_STORAGE_KEY, [...getStoredIds(READ_STORAGE_KEY), ...allIds]);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
-  const dismiss = (id: string) =>
+  const dismiss = (id: string) => {
+    storeIds(DISMISSED_STORAGE_KEY, [...getStoredIds(DISMISSED_STORAGE_KEY), id]);
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
   // ── Filtering ──
   const filtered = notifications.filter(n => {
@@ -385,14 +449,28 @@ export function Notifications() {
                       </div>
 
                       {notif.kind === 'disease' && notif.diagnosisId && (
-                        <Link
-                          to="/treatment"
-                          onClick={e => e.stopPropagation()}
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            markAsRead(notif.id);
+                            navigate('/treatment', {
+                              state: {
+                                from: 'notifications',
+                                type: notif.species,
+                                disease: notif.diseaseName,
+                                fullName: notif.diseaseName,
+                                confidence: notif.confidencePercent,
+                                severity: notif.severity,
+                                diagnosisId: notif.diagnosisId,
+                              },
+                            });
+                          }}
                           className="text-xs font-semibold text-red-600 hover:text-red-700 underline underline-offset-2 flex items-center gap-1"
                         >
                           <Microscope className="w-3 h-3" />
                           View treatment
-                        </Link>
+                        </button>
                       )}
 
                       {notif.kind === 'healthy' && (

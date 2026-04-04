@@ -16,14 +16,18 @@ DISEASE_NAMES = {
     'cocci':   'Coccidiosis',
     'healthy': 'Healthy',
     'ncd':     'Newcastle Disease',
+    'non_poultry': 'Non Poultry',
+    'not_fish': 'Not Fish',
     'salmo':   'Salmonellosis',
 }
+
+NON_DISEASE_CODES = {'healthy', 'non_poultry', 'not_fish'}
 
 
 def _build_ai_result(disease_code: str, confidence: float) -> dict:
     """Build a structured AI result dict from raw model output."""
     disease_name = DISEASE_NAMES.get(disease_code, disease_code.upper())
-    is_healthy = disease_code == 'healthy'
+    is_healthy = disease_code in NON_DISEASE_CODES
 
     if is_healthy:
         severity = 'NONE'

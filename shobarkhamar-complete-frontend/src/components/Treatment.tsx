@@ -1,8 +1,10 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router';
 import { ArrowLeft, Pill, AlertCircle, Fish, Bird, LogOut, ClipboardList, Syringe, Droplet, AlertTriangle, Info } from 'lucide-react';
 import poultryIcon from 'figma:asset/36269bc95e30a658e2dbcacea10d1ccc3ac7bec8.png';
 import fishSampleImage from 'figma:asset/81061a8ea05a453e7b182b6e9e85ca8c1777b806.png';
 import poultrySampleImage from 'figma:asset/dfc44b2571f492b90efd940d77993d9db48d5a82.png';
+import { API_ORIGIN, getDiagnosis } from '../services/api';
 
 // Generate UUID
 function generateUUID() {
@@ -16,14 +18,17 @@ function generateUUID() {
 export function Treatment() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   
   // Extract state - use optional chaining safely
   const state = location.state as {
+    from?: string;
     type?: string;
     disease?: string;
     fullName?: string;
     treatment?: string;
     image?: string;
+    diagnosisId?: string;
   } | undefined;
 
   // Get type from URL params as fallback
@@ -31,18 +36,48 @@ export function Treatment() {
   const typeFromUrl = urlParams.get('type');
   
   const type = state?.type || typeFromUrl || 'fish';
+  const cameFromNotifications = state?.from === 'notifications';
   const disease = state?.disease || '';
+  const diagnosisId = state?.diagnosisId;
   // const severity = state?.severity || '';
   // const confidence = state?.confidence || null;
-  const image = state?.image || (type === 'fish' ? fishSampleImage : poultrySampleImage);
+  const image = uploadedImage || state?.image || (type === 'fish' ? fishSampleImage : poultrySampleImage);
   const fullName = state?.fullName || (type === 'fish' ? 'Epizootic Ulcerative Syndrome' : 'Newcastle Disease');
   const treatment = state?.treatment || (type === 'fish' ? 'Use insecticide' : 'Use antibiotics');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDiagnosisImage() {
+      if (!diagnosisId) return;
+
+      try {
+        const diagnosis = await getDiagnosis(diagnosisId);
+        const latestImage = diagnosis.images?.[0]?.image_url;
+        if (!latestImage || !isMounted) return;
+
+        const resolvedImage = latestImage.startsWith('http')
+          ? latestImage
+          : `${API_ORIGIN}${latestImage.startsWith('/') ? latestImage : `/${latestImage}`}`;
+
+        setUploadedImage(resolvedImage);
+      } catch {
+        // Fall back to the route image or static preview if diagnosis lookup fails.
+      }
+    }
+
+    loadDiagnosisImage();
+    return () => {
+      isMounted = false;
+    };
+  }, [diagnosisId]);
 
 // ── Dynamic treatment based on actual AI disease ──
   const diseaseKey = disease?.toLowerCase().replace(/\s+/g, '_') || '';
 
   const treatmentMap: Record<string, any> = {
     coccidiosis: {
+      treatment_id: 'TRT-POULTRY-COCCIDIOSIS',
       treatment_name: 'Coccidiosis Treatment Protocol',
       medication_name: 'Amprolium or Sulfonamides',
       application_method: 'ORAL',
@@ -52,6 +87,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Toltrazuril (25mg/kg bodyweight). Vitamin K supplement helps reduce bleeding.',
     },
     new_castle_disease: {
+      treatment_id: 'TRT-POULTRY-NEWCASTLE',
       treatment_name: 'Newcastle Disease Protocol',
       medication_name: 'Oxytetracycline + Multivitamins',
       application_method: 'ORAL',
@@ -61,6 +97,7 @@ export function Treatment() {
       alternatives_note: 'Supportive therapy with electrolytes. Consider Enrofloxacin (10mg/kg) for secondary infections.',
     },
     salmonella: {
+      treatment_id: 'TRT-POULTRY-SALMONELLA',
       treatment_name: 'Salmonellosis Treatment Protocol',
       medication_name: 'Enrofloxacin or Trimethoprim-Sulfamethoxazole',
       application_method: 'ORAL',
@@ -70,6 +107,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Ampicillin or Chloramphenicol. Always do sensitivity testing before treatment.',
     },
     bacterial_red_disease: {
+      treatment_id: 'TRT-FISH-RED-DISEASE',
       treatment_name: 'Bacterial Red Disease Protocol',
       medication_name: 'Oxytetracycline + Salt',
       application_method: 'IN_WATER',
@@ -79,6 +117,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Florfenicol or Kanamycin. Consult specialist for dosage.',
     },
     bacterial_gill_disease: {
+      treatment_id: 'TRT-FISH-GILL-DISEASE',
       treatment_name: 'Bacterial Gill Disease Protocol',
       medication_name: 'Chloramine-T or Potassium Permanganate',
       application_method: 'BATH',
@@ -88,6 +127,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Formalin bath (150–250mg/L for 30–60 min). Remove activated carbon during treatment.',
     },
     fungal_diseases_saprolegniasis: {
+      treatment_id: 'TRT-FISH-SAPROLEGNIASIS',
       treatment_name: 'Saprolegniasis Treatment Protocol',
       medication_name: 'Potassium Permanganate or Salt',
       application_method: 'BATH',
@@ -97,6 +137,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Malachite green (0.1mg/L) where permitted. Bronopol-based products also effective.',
     },
     parasitic_diseases: {
+      treatment_id: 'TRT-FISH-PARASITIC',
       treatment_name: 'Parasitic Disease Protocol',
       medication_name: 'Formalin + Malachite Green',
       application_method: 'BATH',
@@ -106,6 +147,7 @@ export function Treatment() {
       alternatives_note: 'Alternative: Praziquantel for flukes (2–10mg/L bath). Trichlorfon for crustacean parasites.',
     },
     viral_diseases_white_tail_disease: {
+      treatment_id: 'TRT-FISH-WHITE-TAIL',
       treatment_name: 'White Tail Disease Supportive Care',
       medication_name: 'Antibiotic + Immunostimulant',
       application_method: 'ORAL',
@@ -117,13 +159,15 @@ export function Treatment() {
   };
 
   const treatmentData = treatmentMap[diseaseKey] || {
+    treatment_id: `TRT-${generateUUID().slice(0, 8).toUpperCase()}`,
     treatment_name: `${disease} Treatment Protocol`,
     medication_name: 'Consult a veterinarian',
-    application_method: 'ORAL',
+    application_method: null,
     dosage_text: 'Please consult a qualified veterinarian for proper dosage.',
-    duration_days: 7,
+    duration_days: null,
     precaution: 'Isolate affected animals. Maintain good hygiene. Monitor closely.',
     alternatives_note: 'A veterinarian can recommend the best treatment based on your specific situation.',
+    requires_veterinarian: true,
   };
 
   // Mock prescription details
@@ -147,8 +191,33 @@ export function Treatment() {
     return methods[method] || methods['ORAL'];
   };
 
-  const applicationMethod = getApplicationMethodDisplay(treatmentData.application_method);
-  const ApplicationIcon = applicationMethod.icon;
+  const requiresVeterinarian = Boolean(treatmentData.requires_veterinarian);
+  const applicationMethod = treatmentData.application_method
+    ? getApplicationMethodDisplay(treatmentData.application_method)
+    : null;
+  const ApplicationIcon = applicationMethod?.icon;
+  const protocolSteps = useMemo(() => {
+    if (requiresVeterinarian) {
+      return [
+        'Isolate the affected animal or birds and reduce contact with the rest of the flock or stock.',
+        'Contact a qualified veterinarian or aquatic animal specialist for an examination.',
+        'Share the uploaded image, symptoms, and farm conditions to help confirm the diagnosis.',
+        'Do not start antibiotics or chemicals without professional guidance.',
+        'Follow the veterinarian-prescribed medicine, dosage, and application method exactly.',
+        'Monitor animals closely and return for follow-up if symptoms worsen.',
+      ];
+    }
+
+    return [
+      'Isolate affected animals immediately to prevent disease spread',
+      `Administer medication as per prescription (${treatmentData.dosage_text})`,
+      `Use ${applicationMethod?.text.toLowerCase()} application method: ${applicationMethod?.description.toLowerCase()}`,
+      'Maintain optimal environmental conditions (temperature, water quality, etc.)',
+      'Monitor animals daily for improvement or adverse reactions',
+      `Continue treatment for full ${treatmentData.duration_days} days period`,
+      'Schedule follow-up examination after treatment completion',
+    ];
+  }, [applicationMethod, requiresVeterinarian, treatmentData.dosage_text, treatmentData.duration_days]);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -157,7 +226,7 @@ export function Treatment() {
   };
 
   const handleAnalyzeAnother = () => {
-    navigate('/selection');
+    navigate(`/detection?type=${type}`);
   };
 
   return (
@@ -166,7 +235,7 @@ export function Treatment() {
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link to="/selection" className="text-gray-600 hover:text-gray-900">
+              <Link to={cameFromNotifications ? "/notifications" : "/selection"} className="text-gray-600 hover:text-gray-900">
                 <ArrowLeft className="w-6 h-6" />
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Treatment Details</h1>
@@ -250,32 +319,36 @@ export function Treatment() {
           </div>
 
           {/* Application Method */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <ApplicationIcon className="w-5 h-5 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Application Method</h3>
+          {!requiresVeterinarian && applicationMethod && ApplicationIcon && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <ApplicationIcon className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Application Method</h3>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="font-semibold text-green-900 mb-1">{applicationMethod.text}</p>
+                <p className="text-sm text-gray-700">{applicationMethod.description}</p>
+              </div>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="font-semibold text-green-900 mb-1">{applicationMethod.text}</p>
-              <p className="text-sm text-gray-700">{applicationMethod.description}</p>
-            </div>
-          </div>
+          )}
 
           {/* Medication Details */}
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="p-4 border border-gray-200 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Medication Name</p>
+              <p className="text-sm text-gray-600 mb-1">{requiresVeterinarian ? 'Recommendation' : 'Medication Name'}</p>
               <p className="font-semibold text-gray-900">{treatmentData.medication_name}</p>
             </div>
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Duration</p>
-              <p className="font-semibold text-gray-900">{treatmentData.duration_days} days</p>
-            </div>
+            {!requiresVeterinarian && treatmentData.duration_days && (
+              <div className="p-4 border border-gray-200 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Duration</p>
+                <p className="font-semibold text-gray-900">{treatmentData.duration_days} days</p>
+              </div>
+            )}
           </div>
 
           {/* Dosage Information */}
           <div className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-green-600 p-6 rounded-lg mb-6">
-            <h3 className="font-semibold text-gray-900 mb-2">Dosage Information</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{requiresVeterinarian ? 'Professional Guidance' : 'Dosage Information'}</h3>
             <p className="text-gray-700">{treatmentData.dosage_text}</p>
           </div>
 
@@ -308,13 +381,9 @@ export function Treatment() {
               <div className="flex-1">
                 <h4 className="font-semibold text-gray-900 mb-2">Step-by-Step Protocol:</h4>
                 <ol className="list-decimal list-inside text-gray-700 space-y-2">
-                  <li>Isolate affected animals immediately to prevent disease spread</li>
-                  <li>Administer medication as per prescription ({treatmentData.dosage_text})</li>
-                  <li>Use {applicationMethod.text.toLowerCase()} application method: {applicationMethod.description.toLowerCase()}</li>
-                  <li>Maintain optimal environmental conditions (temperature, water quality, etc.)</li>
-                  <li>Monitor animals daily for improvement or adverse reactions</li>
-                  <li>Continue treatment for full {treatmentData.duration_days} days period</li>
-                  <li>Schedule follow-up examination after treatment completion</li>
+                  {protocolSteps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
                 </ol>
               </div>
             </div>
@@ -330,7 +399,7 @@ export function Treatment() {
             Analyze Another Sample
           </button>
           <Link
-            to="/"
+            to={cameFromNotifications ? "/notifications" : "/selection"}
             className="bg-gray-200 text-gray-800 px-8 py-4 rounded-lg hover:bg-gray-300 transition-colors font-semibold text-lg"
           >
             Back to Home

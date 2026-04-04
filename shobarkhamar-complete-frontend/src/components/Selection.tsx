@@ -1,11 +1,47 @@
 import { Link, useNavigate } from 'react-router';
 import { Fish, Bird, LogOut, ArrowLeft, User, Clock, Bell, Building2, BookOpen, MessageSquare } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryImage from 'figma:asset/42eeaf1bf402682fb5a784bdf4ac8a449b212110.png';
+import { getHistory, getToken } from '../services/api';
+import { getUnreadNotificationCount } from '../utils/notifications';
+
+const SYSTEM_NOTIFICATIONS = [
+  { id: 'sys-1', read: false },
+  { id: 'info-1', read: true },
+];
 
 export function Selection() {
   const navigate = useNavigate();
   const userName = localStorage.getItem('userName') || 'User';
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      const token = getToken();
+
+      if (!token) {
+        setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+        return;
+      }
+
+      try {
+        const data = await getHistory(0, 50);
+        setUnreadCount(getUnreadNotificationCount(data.diagnoses, SYSTEM_NOTIFICATIONS));
+      } catch {
+        setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      }
+    };
+
+    loadUnreadCount();
+    window.addEventListener('focus', loadUnreadCount);
+    window.addEventListener('storage', loadUnreadCount);
+
+    return () => {
+      window.removeEventListener('focus', loadUnreadCount);
+      window.removeEventListener('storage', loadUnreadCount);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -55,9 +91,11 @@ export function Selection() {
           >
             <Bell className="w-8 h-8 text-yellow-600" />
             <span className="text-sm font-medium text-gray-900">Notifications</span>
-            <span className="absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              2
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </Link>
 
           <Link

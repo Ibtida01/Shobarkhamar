@@ -3,6 +3,8 @@
 // All routes live under /api/v1/  (proxied by vite.config.ts)
 // ============================================================
 
+export const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:18000';
+
 const BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api/v1`
   : '/api/v1';
@@ -243,6 +245,13 @@ export async function getHistory(skip = 0, limit = 100): Promise<DiagnosisListRe
     headers: authHeaders(),
   });
   return handleResponse<DiagnosisListResponse>(res);
+}
+
+export async function getDiagnosis(diagnosisId: string): Promise<DiagnosisResponse> {
+  const res = await fetch(`${BASE_URL}/detection/${diagnosisId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<DiagnosisResponse>(res);
 }
 
 // ─────────────────────────────────────────────────────────────

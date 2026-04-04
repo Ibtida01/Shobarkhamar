@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Docker Up",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d"],
+      "options": {
+        "cwd": "${workspaceFolder}/shobarkhamar-complete-backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Docker Down",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "down"],
+      "options": {
+        "cwd": "${workspaceFolder}/shobarkhamar-complete-backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Logs",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "logs", "-f", "app"],
+      "options": {
+        "cwd": "${workspaceFolder}/shobarkhamar-complete-backend"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Dev Server",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/shobarkhamar-complete-frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Full Stack",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Backend: Docker Up", "Frontend: Dev Server"],
+      "problemMatcher": []
+    }
+  ]
+}
