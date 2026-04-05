@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryIcon from 'figma:asset/36269bc95e30a658e2dbcacea10d1ccc3ac7bec8.png';
 import { analyzeImage, getFarms, DiagnosisResponse, Farm, TargetSpecies } from '../services/api';
+import { notificationService } from '../services/notifications';
 
 export function Detection() {
   const [searchParams] = useSearchParams();
@@ -86,6 +87,14 @@ export function Detection() {
         symptomsText || undefined
       );
       setResult(diagnosis);
+      // Create notification
+      const ai = diagnosis.ai_result;
+      notificationService.addDiagnosisNotification(
+        ai?.is_healthy ?? true,
+        ai?.disease_name,
+        type === 'fish' ? 'fish' : 'poultry',
+        diagnosis.diagnosis_id,
+      );
       setShowSuccessModal(true);
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
