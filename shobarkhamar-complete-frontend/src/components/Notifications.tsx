@@ -36,7 +36,7 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
   const code = (d.ai_result?.disease_code ?? d.ai_disease_code ?? '').toLowerCase().replace(/[\s-]+/g, '_');
   const confidencePercent = d.ai_result?.confidence_percent ?? ((d.ai_confidence ?? 0) * 100);
   const isHealthy = d.ai_result ? d.ai_result.is_healthy : HEALTHY_CODES.has(code);
-  const name = d.ai_result?.disease_name ?? code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+  const name = d.ai_result?.disease_name ?? (code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown');
   const sev = d.ai_result?.severity ?? (confidencePercent >= 80 ? 'HIGH' : confidencePercent >= 60 ? 'MEDIUM' : 'LOW');
 
   if (isHealthy) {
