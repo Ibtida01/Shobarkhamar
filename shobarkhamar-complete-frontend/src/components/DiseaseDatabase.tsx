@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowLeft, LogOut, Search, Fish, Bird, AlertCircle, Info, FileText } from 'lucide-react';
+import { ArrowLeft, LogOut, Search, Fish, Bird, AlertCircle, Info, FileText, ShieldCheck, Pill, Sparkles, X } from 'lucide-react';
 
 interface Disease {
   id: string;
@@ -233,92 +233,183 @@ export function DiseaseDatabase() {
 
       {/* Disease Detail Modal */}
       {selectedDisease && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-8 my-8">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-start gap-4">
-                <div className={`p-4 rounded-full ${
-                  selectedDisease.type === 'fish' ? 'bg-blue-100' : 'bg-green-100'
-                }`}>
-                  {selectedDisease.type === 'fish' ? (
-                    <Fish className="w-8 h-8 text-blue-600" />
-                  ) : (
-                    <Bird className="w-8 h-8 text-green-600" />
-                  )}
+        <div className="fixed inset-0 bg-black/55 z-50 p-4 sm:p-6 overflow-y-auto">
+          <div className="min-h-full flex items-start justify-center">
+            <div className="bg-white rounded-[28px] shadow-2xl max-w-5xl w-full my-4 sm:my-8 overflow-hidden border border-white/70">
+            <div className={`px-8 py-8 sm:px-10 sticky top-0 z-10 border-b border-white/70 ${
+              selectedDisease.type === 'fish'
+                ? 'bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_40%),linear-gradient(135deg,#eff6ff_0%,#ffffff_55%,#ecfeff_100%)]'
+                : 'bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.22),_transparent_40%),linear-gradient(135deg,#f0fdf4_0%,#ffffff_55%,#f0fdf4_100%)]'
+            }`}>
+              <div className="flex items-start justify-between gap-4 mb-8">
+                <div className="flex items-start gap-5">
+                  <div className={`p-4 rounded-3xl shadow-sm ${
+                    selectedDisease.type === 'fish' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {selectedDisease.type === 'fish' ? (
+                      <Fish className="w-9 h-9" />
+                    ) : (
+                      <Bird className="w-9 h-9" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <span className={`text-xs font-semibold uppercase tracking-[0.18em] px-3 py-1.5 rounded-full ${
+                        selectedDisease.type === 'fish'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {selectedDisease.type === 'fish' ? 'Fish Disease' : 'Poultry Disease'}
+                      </span>
+                      <span className="text-xs font-medium text-gray-500 bg-white/80 px-3 py-1.5 rounded-full border border-gray-200">
+                        Disease ID: {selectedDisease.id}
+                      </span>
+                    </div>
+                    <h2 className="text-4xl sm:text-5xl font-bold text-gray-950 leading-tight">
+                      {selectedDisease.name}
+                    </h2>
+                    <p className="text-lg sm:text-xl text-gray-600 mt-2 max-w-3xl">
+                      {selectedDisease.fullName}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{selectedDisease.name}</h2>
-                  <p className="text-xl text-gray-600">{selectedDisease.fullName}</p>
+                <button
+                  onClick={() => setSelectedDisease(null)}
+                  className="w-11 h-11 rounded-full shadow-sm transition-colors flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '2px solid #d1d5db',
+                    color: '#111827',
+                  }}
+                  aria-label="Close disease details"
+                >
+                  <X className="w-5 h-5" strokeWidth={2.5} style={{ color: '#111827' }} />
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-white/85 backdrop-blur-sm border border-gray-200 rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em]">Basic Info</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-1">Disease Name</p>
+                  <p className="text-lg font-bold text-gray-900">{selectedDisease.name}</p>
+                  <p className="text-sm text-gray-600 mt-2">{selectedDisease.fullName}</p>
+                </div>
+
+                <div className="bg-white/85 backdrop-blur-sm border border-gray-200 rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Pill className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em]">Medication</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-1">Recommended</p>
+                  <p className="text-base font-semibold text-gray-900 leading-relaxed">{selectedDisease.medication}</p>
+                </div>
+
+                <div className="bg-white/85 backdrop-blur-sm border border-gray-200 rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-gray-500 mb-2">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em]">Effectiveness</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-1">Expected Result</p>
+                  <p className="text-base font-semibold text-gray-900 leading-relaxed">{selectedDisease.effectiveness}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setSelectedDisease(null)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
             </div>
 
-            <div className="space-y-6">
-              {/* Symptoms */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                  <h3 className="text-xl font-bold text-gray-900">Symptoms</h3>
+            <div className="px-8 py-8 sm:px-10 bg-white">
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div className="bg-red-50/80 border border-red-100 rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Symptoms</h3>
+                      <p className="text-sm text-gray-500">Common signs to watch for</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-3">
+                    {selectedDisease.symptoms.map((symptom, index) => (
+                      <li key={index} className="flex items-start gap-3 text-gray-700">
+                        <span className="mt-2 h-2.5 w-2.5 rounded-full bg-red-400 flex-shrink-0" />
+                        <span className="leading-relaxed">{symptom}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="list-disc list-inside text-gray-700 space-y-2 bg-red-50 p-4 rounded-lg">
-                  {selectedDisease.symptoms.map((symptom, index) => (
-                    <li key={index}>{symptom}</li>
-                  ))}
-                </ul>
+
+                <div className="bg-blue-50/80 border border-blue-100 rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center">
+                      <Info className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Diagnosis Method</h3>
+                      <p className="text-sm text-gray-500">How this disease is confirmed</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{selectedDisease.diagnosis}</p>
+                </div>
               </div>
 
-              {/* Diagnosis */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Info className="w-6 h-6 text-blue-600" />
-                  <h3 className="text-xl font-bold text-gray-900">Diagnosis Method</h3>
+              <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-6 mt-6">
+                <div className="bg-emerald-50/80 border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Treatment Plan</h3>
+                      <p className="text-sm text-gray-500">Recommended first-line approach</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{selectedDisease.treatment}</p>
+
+                  <div className="mt-5 bg-white/90 border border-emerald-200 rounded-2xl p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 mb-2">
+                      Recommended Medication
+                    </p>
+                    <p className="font-semibold text-gray-900 leading-relaxed">{selectedDisease.medication}</p>
+                  </div>
                 </div>
-                <p className="text-gray-700 bg-blue-50 p-4 rounded-lg">{selectedDisease.diagnosis}</p>
+
+                <div className="bg-amber-50/80 border border-amber-100 rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-2xl bg-amber-100 flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Precautions & Prevention</h3>
+                      <p className="text-sm text-gray-500">Important safety actions during treatment</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-3">
+                    {selectedDisease.precautions.map((precaution, index) => (
+                      <li key={index} className="flex items-start gap-3 text-gray-700">
+                        <span className="mt-2 h-2.5 w-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                        <span className="leading-relaxed">{precaution}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
-              {/* Treatment */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="w-6 h-6 text-green-600" />
-                  <h3 className="text-xl font-bold text-gray-900">Treatment</h3>
-                </div>
-                <p className="text-gray-700 bg-green-50 p-4 rounded-lg mb-3">{selectedDisease.treatment}</p>
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Recommended Medication</p>
-                  <p className="font-semibold text-gray-900">{selectedDisease.medication}</p>
-                </div>
-              </div>
-
-              {/* Precautions */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Precautions & Prevention</h3>
-                <ul className="list-disc list-inside text-gray-700 space-y-2 bg-yellow-50 p-4 rounded-lg">
-                  {selectedDisease.precautions.map((precaution, index) => (
-                    <li key={index}>{precaution}</li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Effectiveness */}
-              <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-                <p className="text-sm text-purple-800 mb-1">Treatment Effectiveness</p>
-                <p className="font-semibold text-gray-900">{selectedDisease.effectiveness}</p>
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={() => setSelectedDisease(null)}
+                  className="px-6 py-3 rounded-2xl transition-colors font-semibold shadow-sm inline-flex items-center gap-2"
+                  style={{
+                    backgroundColor: '#111827',
+                    color: '#ffffff',
+                    border: '1px solid #111827',
+                  }}
+                >
+                  Close
+                </button>
               </div>
             </div>
-
-            <div className="mt-8 flex justify-end">
-              <button
-                onClick={() => setSelectedDisease(null)}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>

@@ -12,13 +12,11 @@ export function Detection() {
   const navigate = useNavigate();
   const type = (searchParams.get('type') || 'fish') as TargetSpecies;
 
-  // Farm selection (required by backend)
   const [farms, setFarms] = useState<Farm[]>([]);
   const [selectedFarmId, setSelectedFarmId] = useState<string>('');
   const [loadingFarms, setLoadingFarms] = useState(true);
   const [farmsError, setFarmsError] = useState<string | null>(null);
 
-  // Image + analysis
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [symptomsText, setSymptomsText] = useState('');
@@ -26,15 +24,12 @@ export function Detection() {
   const [dragActive, setDragActive] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Modals
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showDiseaseModal, setShowDiseaseModal] = useState(false);
   const [showTreatmentPromptModal, setShowTreatmentPromptModal] = useState(false);
 
-  // Result
   const [result, setResult] = useState<DiagnosisResponse | null>(null);
 
-  // Load farms on mount
   useEffect(() => {
     getFarms()
       .then((data) => {
@@ -64,12 +59,14 @@ export function Detection() {
   };
 
   const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     setDragActive(e.type === 'dragenter' || e.type === 'dragover');
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files?.[0]) setFile(e.dataTransfer.files[0]);
   };
@@ -103,16 +100,10 @@ export function Detection() {
     }
   };
 
-  const handleSuccessOk = () => { setShowSuccessModal(false); setShowDiseaseModal(true); };
-
-  const handleDiseaseOk = () => {
-      setShowDiseaseModal(false);
-      if (result?.ai_result && !isActuallyHealthy) {
-        setShowTreatmentPromptModal(true);
-      } else {
-        handleReset();
-      }
-    };
+  const handleSuccessOk = () => {
+    setShowSuccessModal(false);
+    setShowDiseaseModal(true);
+  };
 
   const handleTreatmentYes = () => {
     setShowTreatmentPromptModal(false);
@@ -129,22 +120,54 @@ export function Detection() {
   };
 
   const handleReset = () => {
-    setSelectedImage(null); setSelectedFile(null); setResult(null);
-    setApiError(null); setSymptomsText('');
-    setShowSuccessModal(false); setShowDiseaseModal(false); setShowTreatmentPromptModal(false);
+    setSelectedImage(null);
+    setSelectedFile(null);
+    setResult(null);
+    setApiError(null);
+    setSymptomsText('');
+    setShowSuccessModal(false);
+    setShowDiseaseModal(false);
+    setShowTreatmentPromptModal(false);
   };
 
   const disease = result?.ai_result;
-  const HEALTHY_CODES = new Set([
-    'healthy', 'healthy_fish', 'healthy fish',
-    'non_poultry', 'not_fish', 'not fish', 'non poultry',
+  const NON_DISEASE_CODES = new Set([
+    'healthy',
+    'healthy_fish',
+    'healthy fish',
+    'non_poultry',
+    'not_fish',
+    'not fish',
+    'non poultry',
+    'non-poultry',
+    'not-fish',
+    'non poultry detected',
+    'invalid image',
   ]);
+
+  const normalizedDiseaseCode = disease?.disease_code?.toLowerCase().replace(/[\s-]+/g, '_');
+  const normalizedDiseaseName = disease?.disease_name?.toLowerCase().replace(/[\s-]+/g, '_');
+  const isAnalysisUnavailable = !!result && !disease;
 
   const isActuallyHealthy =
     !disease ||
     disease.is_healthy ||
-    HEALTHY_CODES.has(disease.disease_code?.toLowerCase()) ||
-    HEALTHY_CODES.has(disease.disease_name?.toLowerCase());
+    NON_DISEASE_CODES.has(normalizedDiseaseCode ?? '') ||
+    NON_DISEASE_CODES.has(normalizedDiseaseName ?? '');
+
+  const hasTreatableDisease =
+    !!disease &&
+    !isActuallyHealthy &&
+    disease.needs_treatment !== false;
+
+  const handleDiseaseOk = () => {
+    setShowDiseaseModal(false);
+    if (hasTreatableDisease) {
+      setShowTreatmentPromptModal(true);
+      return;
+    }
+    handleReset();
+  };
 
   const severityColor = (s: string) => {
     const u = s?.toUpperCase();
@@ -153,6 +176,7 @@ export function Detection() {
     if (u === 'MEDIUM') return 'text-orange-600';
     return 'text-yellow-600';
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
@@ -162,23 +186,25 @@ export function Detection() {
               <ArrowLeft className="w-6 h-6" />
             </Link>
             <div className="flex items-center gap-2">
-              {type === 'fish'
-                ? <Fish className="w-6 h-6 text-blue-600" />
-                : <img src={poultryIcon} alt="Poultry" className="w-8 h-8" />}
+              {type === 'fish' ? (
+                <Fish className="w-6 h-6 text-blue-600" />
+              ) : (
+                <img src={poultryIcon} alt="Poultry" className="w-8 h-8" />
+              )}
               <h1 className="text-2xl font-bold text-gray-900">
                 {type === 'fish' ? 'Fish' : 'Poultry'} Disease Detection
               </h1>
             </div>
           </div>
           <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
-            <LogOut className="w-5 h-5" /><span>Logout</span>
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
           </button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
-
           {type === 'fish' && (
             <div className="rounded-lg overflow-hidden">
               <img src={fishImage} alt="Underwater fish" className="w-full h-48 object-cover" />
@@ -189,7 +215,6 @@ export function Detection() {
             Upload {type === 'fish' ? 'Fish' : 'Faeces'} Image
           </h2>
 
-          {/* ── Farm selector ── */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Farm <span className="text-red-500">*</span>
@@ -217,7 +242,6 @@ export function Detection() {
             )}
           </div>
 
-          {/* ── Optional symptoms text ── */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Describe symptoms <span className="text-gray-400 font-normal">(optional)</span>
@@ -231,19 +255,19 @@ export function Detection() {
             />
           </div>
 
-          {/* ── Error message ── */}
           {apiError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{apiError}</div>
           )}
 
-          {/* ── Image upload ── */}
           {!selectedImage ? (
             <div
               className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
                 dragActive ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'
               }`}
-              onDragEnter={handleDrag} onDragLeave={handleDrag}
-              onDragOver={handleDrag} onDrop={handleDrop}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
             >
               <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-lg text-gray-700 mb-2">Drag and drop your image here, or click to select</p>
@@ -285,7 +309,6 @@ export function Detection() {
         </div>
       </main>
 
-      {/* Upload Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
@@ -301,47 +324,61 @@ export function Detection() {
         </div>
       )}
 
-      {/* Disease Result Modal */}
-            {showDiseaseModal && result && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
-                  {isActuallyHealthy ? (
-                    <>
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                        <CheckCircle className="h-10 w-10 text-green-600" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">All Clear!</h3>
-                      <p className="text-gray-600 mb-6">No disease detected. Your animal appears healthy.</p>
-                      <button onClick={handleDiseaseOk} className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">OK</button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                        <AlertCircle className="h-10 w-10 text-red-600" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-3">Disease Detected</h3>
-                      <p className="text-xl font-bold text-red-600 mb-2 break-words leading-tight px-2">
-                        {disease.disease_name}
-                      </p>
-                      <p className="text-sm text-gray-500">Confidence: {disease.confidence_percent}%</p>
-                      <p className={`text-sm font-semibold mt-1 ${severityColor(disease.severity)}`}>
-                        Severity: {disease.severity}
-                      </p>
-                      <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">OK</button>
-                    </>
-                  )}
+      {showDiseaseModal && result && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
+            {isActuallyHealthy ? (
+              <>
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                  <CheckCircle className="h-10 w-10 text-green-600" />
                 </div>
-              </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">All Clear!</h3>
+                <p className="text-gray-600 mb-6">
+                  {isAnalysisUnavailable
+                    ? 'AI analysis is not available right now. Please try again after the backend model is loaded.'
+                    : normalizedDiseaseCode === 'non_poultry' || normalizedDiseaseName === 'non_poultry'
+                      ? 'This image does not appear to be poultry, so no poultry disease was detected.'
+                      : normalizedDiseaseCode === 'not_fish' || normalizedDiseaseName === 'not_fish'
+                        ? 'This image does not appear to be a fish, so no fish disease was detected.'
+                        : 'No disease detected. Your animal appears healthy.'}
+                </p>
+                <button onClick={handleDiseaseOk} className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                  OK
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <AlertCircle className="h-10 w-10 text-red-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Disease Detected</h3>
+                <p className="text-xl font-bold text-red-600 mb-2 break-words leading-tight px-2">
+                  {disease.disease_name}
+                </p>
+                <p className="text-sm text-gray-500">Confidence: {disease.confidence_percent}%</p>
+                <p className={`text-sm font-semibold mt-1 ${severityColor(disease.severity)}`}>
+                  Severity: {disease.severity}
+                </p>
+                <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">
+                  OK
+                </button>
+              </>
             )}
+          </div>
+        </div>
+      )}
 
-      {/* Treatment Prompt Modal */}
       {showTreatmentPromptModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Wanna see the treatment?</h3>
             <div className="flex gap-4">
-              <button onClick={handleTreatmentYes} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">Yes</button>
-              <button onClick={() => { setShowTreatmentPromptModal(false); handleReset(); }} className="flex-1 bg-gray-300 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors font-semibold">No</button>
+              <button onClick={handleTreatmentYes} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                Yes
+              </button>
+              <button onClick={() => { setShowTreatmentPromptModal(false); handleReset(); }} className="flex-1 bg-gray-300 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors font-semibold">
+                No
+              </button>
             </div>
           </div>
         </div>

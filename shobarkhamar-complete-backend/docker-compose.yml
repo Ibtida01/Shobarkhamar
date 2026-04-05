@@ -41,9 +41,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/shobarkhamar
       - REDIS_URL=redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "18000:8000"
     volumes:
-      - ./models:/app/models:ro
       - ./app:/app/app
       - ./uploads:/app/uploads
       - ./logs:/app/logs

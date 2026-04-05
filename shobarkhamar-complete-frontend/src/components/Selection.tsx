@@ -1,23 +1,43 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Fish, Bird, LogOut, ArrowLeft, User, Clock, Bell, Building2, BookOpen, MessageSquare } from 'lucide-react';
+import { Fish, Bird, LogOut, ArrowLeft, User, Bell, Building2, BookOpen, MessageSquare } from 'lucide-react';
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryImage from 'figma:asset/42eeaf1bf402682fb5a784bdf4ac8a449b212110.png';
-import { notificationService } from '../services/notifications';
+import { getHistory, getToken } from '../services/api';
+import { getUnreadNotificationCount, getStoredIds, READ_STORAGE_KEY, DISMISSED_STORAGE_KEY } from '../utils/notifications';
+
+const SYSTEM_NOTIFICATIONS = [
+  { id: 'sys-1', read: false },
+  { id: 'info-1', read: true },
+];
 
 export function Selection() {
   const navigate = useNavigate();
   const userName = localStorage.getItem('userName') || 'User';
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const loadUnreadCount = async () => {
+    const token = getToken();
+    if (!token) {
+      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      return;
+    }
+    try {
+      const data = await getHistory(0, 50);
+      setUnreadCount(getUnreadNotificationCount(data.diagnoses, SYSTEM_NOTIFICATIONS));
+    } catch {
+      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+    }
+  };
+
   useEffect(() => {
-    // Update badge count on mount and when storage changes
-    const update = () => setUnreadCount(notificationService.getUnreadCount());
-    update();
-    window.addEventListener('storage', update);
-    // Also poll every 5s in case same-tab updates
-    const interval = setInterval(update, 5000);
-    return () => { window.removeEventListener('storage', update); clearInterval(interval); };
+    loadUnreadCount();
+    window.addEventListener('focus', loadUnreadCount);
+    window.addEventListener('storage', loadUnreadCount);
+    return () => {
+      window.removeEventListener('focus', loadUnreadCount);
+      window.removeEventListener('storage', loadUnreadCount);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -30,25 +50,20 @@ export function Selection() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/" className="text-gray-600 hover:text-gray-900">
-                <ArrowLeft className="w-6 h-6" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-sm text-gray-600">Welcome back, {userName}</p>
-              </div>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-gray-600 hover:text-gray-900"><ArrowLeft className="w-6 h-6" /></Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-sm text-gray-600">Welcome back, {userName}</p>
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
-              <LogOut className="w-5 h-5" /><span>Logout</span>
-            </button>
           </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
+            <LogOut className="w-5 h-5" /><span>Logout</span>
+          </button>
         </div>
       </header>
 
-      {/* Quick Access Menu */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Link to="/profile" className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow flex flex-col items-center gap-2 text-center">
@@ -60,8 +75,8 @@ export function Selection() {
             <Bell className="w-8 h-8 text-yellow-600" />
             <span className="text-sm font-medium text-gray-900">Notifications</span>
             {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
+              <span className="absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </Link>
@@ -90,10 +105,8 @@ export function Selection() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <Link
-            to="/farm-info?type=fish"
-            className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all transform hover:scale-105"
-          >
+          <Link to="/farm-info?type=fish"
+            className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="relative h-80 overflow-hidden">
               <img src={fishImage} alt="Fish" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
               <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent" />
@@ -107,10 +120,8 @@ export function Selection() {
             </div>
           </Link>
 
-          <Link
-            to="/farm-info?type=poultry"
-            className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all transform hover:scale-105"
-          >
+          <Link to="/farm-info?type=poultry"
+            className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="relative h-80 overflow-hidden">
               <img src={poultryImage} alt="Poultry" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
               <div className="absolute inset-0 bg-gradient-to-t from-green-900/80 to-transparent" />
