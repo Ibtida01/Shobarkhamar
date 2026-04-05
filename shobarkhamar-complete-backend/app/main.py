@@ -27,17 +27,17 @@ POULTRY_MODEL_PATH = os.getenv("POULTRY_MODEL_PATH", "/app/models/efficientnetv2
 
 def _load_model(available, cls, path, label):
     if not available:
-        print(f"⚠️  {label} module not importable — skipping")
+        print(f" {label} module not importable — skipping")
         return None
     if not os.path.exists(path):
-        print(f"⚠️  {label} model not found at {path} — running without AI inference")
+        print(f" {label} model not found at {path} — running without AI inference")
         return None
     try:
         m = cls(path)
         print(f"✓ {label} model loaded from: {path}")
         return m
     except Exception as e:
-        print(f"⚠️  {label} model failed to load: {e}")
+        print(f" {label} model failed to load: {e}")
         return None
 
 
