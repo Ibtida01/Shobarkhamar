@@ -1,280 +1,230 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowLeft, LogOut, User, Phone, Mail, MapPin, Save, Edit2, Building2, MapPinned, Ruler, Fish, Bird, Activity } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Phone, Mail, MapPin, Save, Edit2, Loader2 } from 'lucide-react';
+import { getToken } from '../services/api';
+
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : '/api/v1';
+
+interface UserProfile {
+  user_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  role: string;
+  created_at: string;
+}
+
+async function fetchProfile(): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch profile');
+  return res.json();
+}
+
+async function updateProfile(data: { name?: string; phone?: string; address?: string }): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update profile');
+  }
+  return res.json();
+}
 
 export function Profile() {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
-    name: localStorage.getItem('userName') || '',
-    email: localStorage.getItem('userEmail') || '',
-    address: localStorage.getItem('userAddress') || '',
-    phone: localStorage.getItem('userPhone') || '',
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Farm information state
-  const [farmInfo, setFarmInfo] = useState({
-    farmName: localStorage.getItem('farmName') || '',
-    location: localStorage.getItem('farmLocation') || '',
-    areaSize: localStorage.getItem('farmAreaSize') || '',
-    farmType: localStorage.getItem('farmType') || 'fish',
-    farmStatus: localStorage.getItem('farmStatus') || 'active'
-  });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [edits, setEdits] = useState({ name: '', phone: '', address: '' });
+
+  useEffect(() => {
+    fetchProfile()
+      .then((p) => {
+        setProfile(p);
+        setEdits({ name: p.name, phone: p.phone ?? '', address: p.address ?? '' });
+        // Keep localStorage in sync for navbar display
+        localStorage.setItem('userName', p.name);
+        localStorage.setItem('userEmail', p.email);
+      })
+      .catch(() => setError('Could not load profile. Make sure you are logged in.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updated = await updateProfile({
+        name: edits.name || undefined,
+        phone: edits.phone || undefined,
+        address: edits.address || undefined,
+      });
+      setProfile(updated);
+      setEdits({ name: updated.name, phone: updated.phone ?? '', address: updated.address ?? '' });
+      localStorage.setItem('userName', updated.name);
+      setIsEditing(false);
+      setSuccessMsg('Profile updated successfully!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
-    localStorage.removeItem('userAddress');
-    localStorage.removeItem('userPhone');
     navigate('/');
-  };
-
-  const handleSave = () => {
-    // Save personal info
-    localStorage.setItem('userName', profile.name);
-    localStorage.setItem('userEmail', profile.email);
-    localStorage.setItem('userAddress', profile.address);
-    localStorage.setItem('userPhone', profile.phone);
-
-    // Save farm info
-    localStorage.setItem('farmName', farmInfo.farmName);
-    localStorage.setItem('farmLocation', farmInfo.location);
-    localStorage.setItem('farmAreaSize', farmInfo.areaSize);
-    localStorage.setItem('farmType', farmInfo.farmType);
-    localStorage.setItem('farmStatus', farmInfo.farmStatus);
-
-    setIsEditing(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/selection" className="text-gray-600 hover:text-gray-900">
-                <ArrowLeft className="w-6 h-6" />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/selection" className="text-gray-600 hover:text-gray-900">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
           </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
+            <LogOut className="w-5 h-5" /><span>Logout</span>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        {/* Personal Information Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
+      <main className="max-w-2xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-24 gap-3 text-gray-400">
+            <Loader2 className="w-6 h-6 animate-spin" /><span>Loading profile...</span>
+          </div>
+        ) : error && !profile ? (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
+        ) : profile ? (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+
+            {/* Avatar + role */}
+            <div className="flex items-center gap-4 mb-8">
               <div className="bg-gradient-to-br from-green-600 to-blue-600 p-4 rounded-full">
-                <User className="w-12 h-12 text-white" />
+                <User className="w-10 h-10 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{profile.name || 'User'}</h2>
-                <p className="text-gray-600">Farmer Account</p>
+                <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
+                <span className="text-sm text-gray-500 capitalize">{profile.role} · Member since {new Date(profile.created_at).getFullYear()}</span>
+              </div>
+              <button
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                disabled={saving}
+                className="ml-auto flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                {saving ? 'Saving...' : isEditing ? 'Save' : 'Edit'}
+              </button>
+            </div>
+
+            {/* Feedback messages */}
+            {successMsg && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">{successMsg}</div>}
+            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+
+            <div className="space-y-5">
+              {/* Name */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <User className="w-4 h-4" /> Full Name
+                </label>
+                <input
+                  type="text"
+                  value={isEditing ? edits.name : profile.name}
+                  onChange={(e) => setEdits({ ...edits, name: e.target.value })}
+                  disabled={!isEditing}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
+                />
+              </div>
+
+              {/* Email (read-only) */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <Mail className="w-4 h-4" /> Email Address
+                </label>
+                <input
+                  type="email"
+                  value={profile.email}
+                  disabled
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-400 mt-1">Email cannot be changed.</p>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <Phone className="w-4 h-4" /> Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={isEditing ? edits.phone : (profile.phone ?? '—')}
+                  onChange={(e) => setEdits({ ...edits, phone: e.target.value })}
+                  disabled={!isEditing}
+                  placeholder="e.g. +8801711111111"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <MapPin className="w-4 h-4" /> Address
+                </label>
+                <textarea
+                  value={isEditing ? edits.address : (profile.address ?? '—')}
+                  onChange={(e) => setEdits({ ...edits, address: e.target.value })}
+                  disabled={!isEditing}
+                  rows={3}
+                  placeholder="Your full address"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
+                />
               </div>
             </div>
-            <button
-              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              {isEditing ? (
-                <>
-                  <Save className="w-5 h-5" />
-                  Save
-                </>
-              ) : (
-                <>
-                  <Edit2 className="w-5 h-5" />
-                  Edit
-                </>
-              )}
-            </button>
+
+            {isEditing && (
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => { setIsEditing(false); setError(null); setEdits({ name: profile.name, phone: profile.phone ?? '', address: profile.address ?? '' }); }}
+                  className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
-
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Personal Information</h3>
-
-          <div className="space-y-6">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <User className="w-4 h-4" />
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Mail className="w-4 h-4" />
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="your.email@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Phone className="w-4 h-4" />
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="+1234567890"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="w-4 h-4" />
-                Address
-              </label>
-              <textarea
-                value={profile.address}
-                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                disabled={!isEditing}
-                rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="Enter your complete address"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Farm Information Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="flex items-center gap-2 mb-6 border-b pb-2">
-            <Building2 className="w-6 h-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Farm Information</h3>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Building2 className="w-4 h-4" />
-                Farm Name
-              </label>
-              <input
-                type="text"
-                value={farmInfo.farmName}
-                onChange={(e) => setFarmInfo({ ...farmInfo, farmName: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="Enter farm name"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <MapPinned className="w-4 h-4" />
-                Farm Location
-              </label>
-              <input
-                type="text"
-                value={farmInfo.location}
-                onChange={(e) => setFarmInfo({ ...farmInfo, location: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="Enter farm location"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Ruler className="w-4 h-4" />
-                Area Size
-              </label>
-              <input
-                type="text"
-                value={farmInfo.areaSize}
-                onChange={(e) => setFarmInfo({ ...farmInfo, areaSize: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600"
-                placeholder="e.g., 5 acres, 2000 sqm"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                {farmInfo.farmType === 'fish' ? <Fish className="w-4 h-4" /> : <Bird className="w-4 h-4" />}
-                Farm Type
-              </label>
-              <select
-                value={farmInfo.farmType}
-                onChange={(e) => setFarmInfo({ ...farmInfo, farmType: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600 appearance-none bg-white cursor-pointer"
-                style={{ backgroundImage: !isEditing ? 'none' : 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.5em 1.5em' }}
-              >
-                <option value="fish">Fish</option>
-                <option value="poultry">Poultry</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Activity className="w-4 h-4" />
-                Farm Status
-              </label>
-              <select
-                value={farmInfo.farmStatus}
-                onChange={(e) => setFarmInfo({ ...farmInfo, farmStatus: e.target.value })}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-600 appearance-none bg-white cursor-pointer"
-                style={{ backgroundImage: !isEditing ? 'none' : 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.5em 1.5em' }}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <p className="mt-2 text-sm text-gray-600">
-                Status: <span className={`font-semibold ${farmInfo.farmStatus === 'active' ? 'text-green-600' : 'text-gray-600'}`}>
-                  {farmInfo.farmStatus === 'active' ? '● Active' : '○ Inactive'}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          {isEditing && (
-            <div className="mt-6 flex gap-4">
-              <button
-                onClick={handleSave}
-                className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
+        ) : null}
       </main>
     </div>
   );

@@ -262,3 +262,10 @@ export async function healthCheck(): Promise<{ status: string }> {
   const res = await fetch('/health');
   return handleResponse(res);
 }
+
+import { logoutUser } from '../services/api';
+
+const handleLogout = async () => {
+  await logoutUser();
+  navigate('/');
+};

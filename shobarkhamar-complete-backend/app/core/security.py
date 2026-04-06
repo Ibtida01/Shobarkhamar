@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
+import uuid
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -12,62 +13,34 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # JWT Bearer token
 security = HTTPBearer()
 
+BLACKLIST_PREFIX = "blacklist:"
+
 
 def hash_password(password: str) -> str:
-    """Hash a password"""
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against a hash"""
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
     to_encode = data.copy()
-    
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({"exp": expire, "type": "access"})
-    
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    
-    return encoded_jwt
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire, "type": "access", "jti": str(uuid.uuid4())})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def create_refresh_token(data: Dict) -> str:
-    """Create JWT refresh token"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    
-    to_encode.update({"exp": expire, "type": "refresh"})
-    
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    
-    return encoded_jwt
+    to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid.uuid4())})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_token(token: str) -> Dict:
-    """Decode and verify JWT token"""
     try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        return payload
+        return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -76,32 +49,44 @@ def decode_token(token: str) -> Dict:
         )
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
-    """Get current user from JWT token"""
+async def blacklist_token(redis, jti: str, ttl: int):
+    """Add a token's jti to the Redis blacklist."""
+    try:
+        await redis.setex(f"{BLACKLIST_PREFIX}{jti}", ttl, "1")
+    except Exception:
+        pass  # Redis unavailable — token will expire naturally
+
+
+async def is_token_blacklisted(redis, jti: str) -> bool:
+    """Check if a token's jti is in the Redis blacklist."""
+    if redis is None:
+        return False
+    try:
+        return await redis.exists(f"{BLACKLIST_PREFIX}{jti}") > 0
+    except Exception:
+        return False
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict:
     token = credentials.credentials
     payload = decode_token(token)
-    
+
     user_id = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
-    
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    # Note: blacklist check requires Redis — done lazily in auth router for logout
+    # Here we trust the token if it decodes correctly (stateless for performance)
     return payload
 
 
 async def get_current_active_user(current_user: Dict = Depends(get_current_user)) -> Dict:
-    """Get current active user"""
-    # Add additional checks here if needed
     return current_user
 
 
 async def require_admin(current_user: Dict = Depends(get_current_user)) -> Dict:
-    """Require admin role"""
     if current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
