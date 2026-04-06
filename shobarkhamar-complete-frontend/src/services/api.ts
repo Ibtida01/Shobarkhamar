@@ -263,9 +263,40 @@ export async function healthCheck(): Promise<{ status: string }> {
   return handleResponse(res);
 }
 
-import { logoutUser } from '../services/api';
-
-const handleLogout = async () => {
-  await logoutUser();
-  navigate('/');
-};
+export async function logoutUser(): Promise<void> {
+  const token = getToken();
+  if (!token) return;
+  try {
+    await fetch(`${BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+  } catch {
+    // Ignore errors — client-side cleanup happens regardless
+  } finally {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userId');
+  }
+}
+ 
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${refreshToken}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    localStorage.setItem('authToken', data.access_token);
+    localStorage.setItem('refreshToken', data.refresh_token);
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
