@@ -4,7 +4,8 @@ import { Fish, Bird, LogOut, User, Bell, Building2, BookOpen, MessageSquare } fr
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryImage from 'figma:asset/42eeaf1bf402682fb5a784bdf4ac8a449b212110.png';
 import { getHistory, getToken } from '../services/api';
-import { getUnreadNotificationCount, getStoredIds, READ_STORAGE_KEY, DISMISSED_STORAGE_KEY } from '../utils/notifications';
+import { notificationService } from '../services/notifications';
+import { getStoredIds, DISMISSED_STORAGE_KEY, READ_STORAGE_KEY, isClearedNotification } from '../utils/notifications';
 
 const SYSTEM_NOTIFICATIONS = [
   { id: 'sys-1', read: false },
@@ -18,15 +19,34 @@ export function Selection() {
 
   const loadUnreadCount = async () => {
     const token = getToken();
+    const dismissedIds = new Set(getStoredIds(DISMISSED_STORAGE_KEY));
+    const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
+    const localUnread = notificationService.getAll().filter(
+      (n) => !n.read && !readIds.has(n.id) && !dismissedIds.has(n.id) && !isClearedNotification(n.timestamp)
+    ).length;
+
+    const countServerUnread = (diagnoses: { diagnosis_id: string; created_at?: string }[]) =>
+      diagnoses.filter(
+        (d) =>
+          !readIds.has(d.diagnosis_id) &&
+          !dismissedIds.has(d.diagnosis_id) &&
+          !isClearedNotification(d.created_at ?? new Date().toISOString())
+      ).length;
+
+    const countSystemUnread = () =>
+      SYSTEM_NOTIFICATIONS.filter(
+        (n) => !n.read && !readIds.has(n.id) && !dismissedIds.has(n.id)
+      ).length;
+
     if (!token) {
-      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countSystemUnread() + localUnread);
       return;
     }
     try {
       const data = await getHistory(0, 50);
-      setUnreadCount(getUnreadNotificationCount(data.diagnoses, SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countServerUnread(data.diagnoses) + countSystemUnread() + localUnread);
     } catch {
-      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countSystemUnread() + localUnread);
     }
   };
 

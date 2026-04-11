@@ -275,6 +275,15 @@ export function Detection() {
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
                   <CheckCircle className="h-10 w-10 text-green-600" />
                 </div>
+                {selectedImage && (
+                  <div className="mb-5 overflow-hidden rounded-xl border border-green-100 bg-green-50">
+                    <img
+                      src={selectedImage}
+                      alt="Uploaded sample"
+                      className="w-full max-h-56 object-contain bg-white"
+                    />
+                  </div>
+                )}
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">All Clear!</h3>
                 <p className="text-gray-600 mb-6">
                   {isAnalysisUnavailable
