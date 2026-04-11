@@ -24,8 +24,6 @@ interface Notification {
   diagnosisId?: string;
   species?: 'fish' | 'poultry';
   diseaseName?: string;
-  confidencePercent?: number;
-  severity?: string;
 }
 
 const HEALTHY_CODES = new Set(['', 'healthy', 'healthy_fish', 'non_poultry', 'not_fish']);
@@ -34,10 +32,8 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
   const species = d.target_species?.toLowerCase().includes('poultry') ? 'poultry' : 'fish';
   const date = new Date(d.created_at);
   const code = (d.ai_result?.disease_code ?? d.ai_disease_code ?? '').toLowerCase().replace(/[\s-]+/g, '_');
-  const confidencePercent = d.ai_result?.confidence_percent ?? ((d.ai_confidence ?? 0) * 100);
   const isHealthy = d.ai_result ? d.ai_result.is_healthy : HEALTHY_CODES.has(code);
   const name = d.ai_result?.disease_name ?? (code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown');
-  const sev = d.ai_result?.severity ?? (confidencePercent >= 80 ? 'HIGH' : confidencePercent >= 60 ? 'MEDIUM' : 'LOW');
 
   if (isHealthy) {
     return {
@@ -50,9 +46,9 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
   return {
     id: d.diagnosis_id, kind: 'disease',
     title: `Disease Detected — ${name}`,
-    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample: ${name} (${confidencePercent.toFixed(1)}% confidence, severity: ${sev}).`,
+    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample: ${name}.`,
     timestamp: date, read: false, diagnosisId: d.diagnosis_id,
-    species, diseaseName: name, confidencePercent, severity: sev,
+    species, diseaseName: name,
   };
 }
 
@@ -255,7 +251,7 @@ export function Notifications() {
                         {n.kind === 'disease' && n.diagnosisId && (
                           <button onClick={(e) => {
                             e.stopPropagation(); markAsRead(n.id);
-                            navigate('/treatment', { state: { type: n.species, disease: n.diseaseName, confidence: n.confidencePercent, severity: n.severity, diagnosisId: n.diagnosisId } });
+                            navigate('/treatment', { state: { type: n.species, disease: n.diseaseName, diagnosisId: n.diagnosisId } });
                           }} className="text-xs font-semibold text-red-600 hover:text-red-700 underline underline-offset-2 flex items-center gap-1">
                             <Microscope className="w-3 h-3" /> View treatment
                           </button>

@@ -1,21 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Upload, ArrowLeft, Loader2, Fish, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router';
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryIcon from 'figma:asset/36269bc95e30a658e2dbcacea10d1ccc3ac7bec8.png';
-import { analyzeImage, getFarms, DiagnosisResponse, Farm, TargetSpecies } from '../services/api';
+import { quickAnalyzeImage, DiagnosisResponse, TargetSpecies } from '../services/api';
 import { notificationService } from '../services/notifications';
 
 export function Detection() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const type = (searchParams.get('type') || 'fish') as TargetSpecies;
-
-  const [farms, setFarms] = useState<Farm[]>([]);
-  const [selectedFarmId, setSelectedFarmId] = useState<string>('');
-  const [loadingFarms, setLoadingFarms] = useState(true);
-  const [farmsError, setFarmsError] = useState<string | null>(null);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -28,17 +23,7 @@ export function Detection() {
   const [showDiseaseModal, setShowDiseaseModal] = useState(false);
   const [showTreatmentPromptModal, setShowTreatmentPromptModal] = useState(false);
 
-  const [result, setResult] = useState<DiagnosisResponse | null>(null);
-
-  useEffect(() => {
-    getFarms()
-      .then((data) => {
-        setFarms(data);
-        if (data.length > 0) setSelectedFarmId(data[0].farm_id);
-      })
-      .catch(() => setFarmsError('Could not load farms. Make sure you are logged in.'))
-      .finally(() => setLoadingFarms(false));
-  }, []);
+  const [result, setResult] = useState<Partial<DiagnosisResponse> | null>(null);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -72,17 +57,12 @@ export function Detection() {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile || !selectedFarmId) return;
+    if (!selectedFile) return;
     setIsAnalyzing(true);
     setApiError(null);
 
     try {
-      const diagnosis = await analyzeImage(
-        selectedFile,
-        type,
-        selectedFarmId,
-        symptomsText || undefined
-      );
+      const diagnosis = await quickAnalyzeImage(selectedFile, type);
       setResult(diagnosis);
       // Create notification
       const ai = diagnosis.ai_result;
@@ -111,8 +91,6 @@ export function Detection() {
       state: {
         type,
         disease: result?.ai_result?.disease_name,
-        severity: result?.ai_result?.severity,
-        confidence: result?.ai_result?.confidence_percent,
         image: selectedImage,
         diagnosisId: result?.diagnosis_id,
       },
@@ -169,14 +147,6 @@ export function Detection() {
     handleReset();
   };
 
-  const severityColor = (s: string) => {
-    const u = s?.toUpperCase();
-    if (u === 'CRITICAL') return 'text-purple-700';
-    if (u === 'HIGH') return 'text-red-600';
-    if (u === 'MEDIUM') return 'text-orange-600';
-    return 'text-yellow-600';
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
@@ -214,33 +184,6 @@ export function Detection() {
           <h2 className="text-2xl font-bold text-gray-900">
             Upload {type === 'fish' ? 'Fish' : 'Faeces'} Image
           </h2>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Farm <span className="text-red-500">*</span>
-            </label>
-            {loadingFarms ? (
-              <div className="flex items-center gap-2 text-gray-500 text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading farms...
-              </div>
-            ) : farmsError ? (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{farmsError}</div>
-            ) : farms.length === 0 ? (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-                No farms found. Please <Link to="/farm-info" className="underline font-medium">add a farm</Link> before running a detection.
-              </div>
-            ) : (
-              <select
-                value={selectedFarmId}
-                onChange={(e) => setSelectedFarmId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                {farms.map((f) => (
-                  <option key={f.farm_id} value={f.farm_id}>{f.farm_name}</option>
-                ))}
-              </select>
-            )}
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -285,7 +228,7 @@ export function Detection() {
               <div className="flex gap-4">
                 <button
                   onClick={handleAnalyze}
-                  disabled={isAnalyzing || !selectedFarmId}
+                  disabled={isAnalyzing}
                   className="flex-1 bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isAnalyzing ? <><Loader2 className="w-6 h-6 animate-spin" />Analyzing...</> : 'Analyze for Diseases'}
@@ -355,10 +298,7 @@ export function Detection() {
                 <p className="text-xl font-bold text-red-600 mb-2 break-words leading-tight px-2">
                   {disease.disease_name}
                 </p>
-                <p className="text-sm text-gray-500">Confidence: {disease.confidence_percent}%</p>
-                <p className={`text-sm font-semibold mt-1 ${severityColor(disease.severity)}`}>
-                  Severity: {disease.severity}
-                </p>
+                <p className="text-sm text-gray-600">A disease was detected in this sample.</p>
                 <button onClick={handleDiseaseOk} className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold mt-6">
                   OK
                 </button>

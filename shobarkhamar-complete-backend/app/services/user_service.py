@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from fastapi import HTTPException, status
 from uuid import UUID
 from app.models.user import User
@@ -9,6 +9,10 @@ from app.core.security import hash_password, verify_password
 
 class UserService:
     """Service for user-related operations"""
+
+    @staticmethod
+    def normalize_email(email: str) -> str:
+        return email.strip().lower()
     
     @staticmethod
     async def get_by_id(db: AsyncSession, user_id: UUID) -> User:
@@ -27,14 +31,19 @@ class UserService:
     @staticmethod
     async def get_by_email(db: AsyncSession, email: str) -> User | None:
         """Get user by email"""
-        result = await db.execute(select(User).where(User.email == email))
+        normalized_email = UserService.normalize_email(email)
+        result = await db.execute(
+            select(User).where(func.lower(User.email) == normalized_email)
+        )
         return result.scalar_one_or_none()
     
     @staticmethod
     async def create(db: AsyncSession, user_data: UserCreate) -> User:
         """Create new user"""
+        normalized_email = UserService.normalize_email(user_data.email)
+
         # Check if email already exists
-        existing_user = await UserService.get_by_email(db, user_data.email)
+        existing_user = await UserService.get_by_email(db, normalized_email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -44,7 +53,7 @@ class UserService:
         # Create user
         user = User(
             name=user_data.name,
-            email=user_data.email,
+            email=normalized_email,
             phone=user_data.phone,
             address=user_data.address,
             password_hash=hash_password(user_data.password)
@@ -81,7 +90,7 @@ class UserService:
     async def authenticate(db: AsyncSession, email: str, password: str) -> User:
         """Authenticate user"""
         user = await UserService.get_by_email(db, email)
-        
+
         if not user or not verify_password(password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
