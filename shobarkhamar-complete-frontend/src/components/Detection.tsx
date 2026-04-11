@@ -294,6 +294,15 @@ export function Detection() {
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
                   <AlertCircle className="h-10 w-10 text-red-600" />
                 </div>
+                {selectedImage && (
+                  <div className="mb-5 overflow-hidden rounded-xl border border-red-100 bg-red-50">
+                    <img
+                      src={selectedImage}
+                      alt="Uploaded sample"
+                      className="w-full max-h-56 object-contain bg-white"
+                    />
+                  </div>
+                )}
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Disease Detected</h3>
                 <p className="text-xl font-bold text-red-600 mb-2 break-words leading-tight px-2">
                   {disease.disease_name}
