@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     
     # AI/ML
     MODEL_PATH: str = "./models/best_B4_wiener_False.pth"       # fish
-    POULTRY_MODEL_PATH: str = "./models/efficientnetv2_b4_best.pth"  # ← ADD THIS
+    POULTRY_MODEL_PATH: str = "./models/best_model.pt"  # ← ADD THIS
     MODEL_VERSION: str = "1.0.0"
     
     class Config:
