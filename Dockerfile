@@ -23,7 +23,7 @@ RUN python -c "from torchvision.models import efficientnet_b4, EfficientNet_B4_W
 
 COPY shobarkhamar-complete-backend/ .
 
-RUN python download_models.py
+RUN python shobarkhamar-complete-backend/download_models.py
 
 RUN mkdir -p /app/uploads /app/logs
 
