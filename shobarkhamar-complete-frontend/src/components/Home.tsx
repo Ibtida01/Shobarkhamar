@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Fish, Bird, Microscope, Stethoscope, Search, Pill, BookOpen, Clock } from 'lucide-react';
+import { Fish, Bird, Microscope, Stethoscope, Search, Pill, BookOpen } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { LoginModal } from './LoginModal';
 import logoImage from 'figma:asset/7d3279b2af8dc97a9d0e82a307a6444d8edea422.png';
@@ -8,6 +8,7 @@ import poultryImage from 'figma:asset/42eeaf1bf402682fb5a784bdf4ac8a449b212110.p
 
 export function Home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
   const [headerStyle, setHeaderStyle] = useState('light');
   const sectionsRef = useRef([]);
@@ -18,19 +19,13 @@ export function Home() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const index = sectionsRef.current.indexOf(entry.target);
-            if (index !== -1) {
-              setActiveSection(index);
-            }
+            if (index !== -1) setActiveSection(index);
           }
         });
       },
       { threshold: 0.5 }
     );
-
-    sectionsRef.current.forEach((section) => {
-      if (section) observer.observe(section);
-    });
-
+    sectionsRef.current.forEach((section) => { if (section) observer.observe(section); });
     return () => observer.disconnect();
   }, []);
 
@@ -38,92 +33,75 @@ export function Home() {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       const heroHeight = window.innerHeight;
-      
-      if (scrollPosition < heroHeight - 100) {
-        setHeaderStyle('dark'); // Hero section
-      } else if (scrollPosition < heroHeight * 2 - 100) {
-        setHeaderStyle('dark'); // Find disease section
-      } else if (scrollPosition < heroHeight * 3 - 100) {
-        setHeaderStyle('dark'); // Treat livestock section
-      } else if (scrollPosition < heroHeight * 4 - 100) {
-        setHeaderStyle('dark'); // Learn more section
-      } else {
-        setHeaderStyle('light'); // Footer
-      }
+      setHeaderStyle(scrollPosition < heroHeight * 4 - 100 ? 'dark' : 'light');
     };
-
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
-    
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const openLogin = () => { setShowRegister(false); setShowLoginModal(true); };
+  const openRegister = () => { setShowRegister(true); setShowLoginModal(true); };
+  const closeModal = () => { setShowLoginModal(false); setShowRegister(false); };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
       <header className={`border-b fixed top-0 w-full z-50 transition-all duration-300 ${
-        headerStyle === 'dark' 
-          ? 'bg-black/30 backdrop-blur-md border-white/20' 
+        headerStyle === 'dark'
+          ? 'bg-black/30 backdrop-blur-md border-white/20'
           : 'bg-white/95 backdrop-blur-sm border-gray-200 shadow-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3">
               <img src={logoImage} className="w-12 h-12" alt="Logo" />
-              <span 
+              <span
                 className={`text-3xl font-medium transition-colors duration-300 ${
                   headerStyle === 'dark' ? 'text-white' : 'text-slate-900'
-                }`} 
-                style={{fontFamily: 'DM Sans'}}
+                }`}
+                style={{ fontFamily: 'DM Sans' }}
               >
                 Shobar Khamar
               </span>
             </div>
             <nav className="hidden md:flex items-center gap-8">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className={`font-medium transition-colors ${
-                  headerStyle === 'dark' 
-                    ? 'text-white hover:text-green-300' 
-                    : 'text-gray-900 hover:text-green-600'
+                  headerStyle === 'dark' ? 'text-white hover:text-green-300' : 'text-gray-900 hover:text-green-600'
                 }`}
               >
                 Home
               </Link>
-              <button 
-                onClick={() => setShowLoginModal(true)}
+              <button
+                onClick={openLogin}
                 className={`transition-colors ${
-                  headerStyle === 'dark' 
-                    ? 'text-white/80 hover:text-green-300' 
-                    : 'text-gray-600 hover:text-green-600'
+                  headerStyle === 'dark' ? 'text-white/80 hover:text-green-300' : 'text-gray-600 hover:text-green-600'
                 }`}
               >
                 Diagnose tool
               </button>
-              <Link 
-                to="/about" 
+              <Link
+                to="/about"
                 className={`transition-colors ${
-                  headerStyle === 'dark' 
-                    ? 'text-white/80 hover:text-green-300' 
-                    : 'text-gray-600 hover:text-green-600'
+                  headerStyle === 'dark' ? 'text-white/80 hover:text-green-300' : 'text-gray-600 hover:text-green-600'
                 }`}
               >
                 About us
               </Link>
             </nav>
             <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setShowLoginModal(true)}
+              <button
+                onClick={openRegister}
                 className={`font-medium transition-colors ${
-                  headerStyle === 'dark' 
-                    ? 'text-white/80 hover:text-green-300' 
-                    : 'text-gray-600 hover:text-green-600'
+                  headerStyle === 'dark' ? 'text-white/80 hover:text-green-300' : 'text-gray-600 hover:text-green-600'
                 }`}
               >
                 Register
               </button>
-              <button 
-                onClick={() => setShowLoginModal(true)}
+              <button
+                onClick={openLogin}
                 className={`px-6 py-2 rounded-lg font-medium transition-all ${
                   headerStyle === 'dark'
                     ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30'
@@ -140,29 +118,18 @@ export function Home() {
       {/* Hero Section */}
       <div className="relative h-screen bg-gradient-to-r from-blue-900/70 to-green-900/70 overflow-hidden">
         <div className="absolute inset-0 grid grid-cols-2">
-          <div 
-            className="bg-cover bg-center opacity-50"
-            style={{ backgroundImage: `url(${fishImage})` }}
-          />
-          <div 
-            className="bg-cover bg-center opacity-50"
-            style={{ backgroundImage: `url(${poultryImage})` }}
-          />
+          <div className="bg-cover bg-center opacity-50" style={{ backgroundImage: `url(${fishImage})` }} />
+          <div className="bg-cover bg-center opacity-50" style={{ backgroundImage: `url(${poultryImage})` }} />
         </div>
         <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center pt-20">
           <div className="max-w-3xl animate-fade-in">
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Welcome to shobarkhamar
-            </h1>
-            <p className="text-xl md:text-2xl text-white/90 mb-4">
-              Diagnostic software for fish and poultry diseases
-            </p>
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">Welcome to shobarkhamar</h1>
+            <p className="text-xl md:text-2xl text-white/90 mb-4">Diagnostic software for fish and poultry diseases</p>
             <p className="text-lg text-white/80 mb-8 max-w-2xl">
-              Diagnose parasitic, bacterial, viral, nutritional and health problems 
-              in tropical fish and poultry with AI-powered analysis.
+              Diagnose parasitic, bacterial, viral, nutritional and health problems in tropical fish and poultry with AI-powered analysis.
             </p>
             <button
-              onClick={() => setShowLoginModal(true)}
+              onClick={openLogin}
               className="inline-block bg-transparent border-2 border-white text-white px-10 py-4 rounded-lg hover:bg-white hover:text-green-700 transition-all text-lg font-semibold shadow-lg hover:shadow-xl"
             >
               GET STARTED
@@ -178,17 +145,8 @@ export function Home() {
       </div>
 
       {/* Section 1: Find Disease */}
-      <div 
-        ref={(el) => (sectionsRef.current[0] = el)}
-        className="relative h-screen flex items-center overflow-hidden"
-      >
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: `url(${fishImage})`,
-            filter: 'brightness(0.4)'
-          }}
-        />
+      <div ref={(el) => (sectionsRef.current[0] = el)} className="relative h-screen flex items-center overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${fishImage})`, filter: 'brightness(0.4)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className={`max-w-2xl transition-all duration-1000 ${activeSection >= 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <div className="flex items-center gap-4 mb-6">
@@ -198,8 +156,7 @@ export function Home() {
             </div>
             <h2 className="text-5xl font-bold text-white mb-6">Find disease</h2>
             <p className="text-xl text-white/90 mb-6">
-              Use our diagnose tool to search in a comprehensive database of symptoms and diseases 
-              for both fish and poultry health issues.
+              Use our diagnose tool to search in a comprehensive database of symptoms and diseases for both fish and poultry health issues.
             </p>
             <div className="flex gap-4">
               <div className="bg-white/20 backdrop-blur-md px-6 py-3 rounded-lg flex items-center gap-3">
@@ -216,17 +173,8 @@ export function Home() {
       </div>
 
       {/* Section 2: Treat Your Livestock */}
-      <div 
-        ref={(el) => (sectionsRef.current[1] = el)}
-        className="relative h-screen flex items-center overflow-hidden"
-      >
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: `url(${poultryImage})`,
-            filter: 'brightness(0.4)'
-          }}
-        />
+      <div ref={(el) => (sectionsRef.current[1] = el)} className="relative h-screen flex items-center overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${poultryImage})`, filter: 'brightness(0.4)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className={`max-w-2xl ml-auto transition-all duration-1000 ${activeSection >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <div className="flex items-center gap-4 mb-6">
@@ -236,8 +184,7 @@ export function Home() {
             </div>
             <h2 className="text-5xl font-bold text-white mb-6">Treat your livestock</h2>
             <p className="text-xl text-white/90 mb-6">
-              Get disease treatments which may include medicines, water treatment, 
-              dietary recommendations and prevention strategies.
+              Get disease treatments which may include medicines, water treatment, dietary recommendations and prevention strategies.
             </p>
             <div className="flex gap-4">
               <div className="bg-white/20 backdrop-blur-md px-6 py-3 rounded-lg flex items-center gap-3">
@@ -250,16 +197,10 @@ export function Home() {
       </div>
 
       {/* Section 3: Learn More */}
-      <div 
-        ref={(el) => (sectionsRef.current[2] = el)}
-        className="relative h-screen flex items-center overflow-hidden"
-      >
-        <div 
-          className="absolute inset-0 bg-gradient-to-br from-purple-900 to-blue-900"
-        />
+      <div ref={(el) => (sectionsRef.current[2] = el)} className="relative h-screen flex items-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 to-blue-900" />
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-cover bg-center mix-blend-overlay"
-               style={{ backgroundImage: `url(${fishImage})` }} />
+          <div className="absolute inset-0 bg-cover bg-center mix-blend-overlay" style={{ backgroundImage: `url(${fishImage})` }} />
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className={`max-w-2xl transition-all duration-1000 ${activeSection >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -270,8 +211,7 @@ export function Home() {
             </div>
             <h2 className="text-5xl font-bold text-white mb-6">Learn more</h2>
             <p className="text-xl text-white/90 mb-6">
-              Browse our extensive list of fish and poultry diseases to find out 
-              more about causes, prognosis and treatment options.
+              Browse our extensive list of fish and poultry diseases to find out more about causes, prognosis and treatment options.
             </p>
             <div className="flex gap-4">
               <div className="bg-white/20 backdrop-blur-md px-6 py-3 rounded-lg flex items-center gap-3">
@@ -296,37 +236,21 @@ export function Home() {
         </div>
       </footer>
 
-      {/* Login Modal */}
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {showLoginModal && (
+        <LoginModal onClose={closeModal} startOnRegister={showRegister} />
+      )}
 
       <style>{`
         @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-
         @keyframes scroll {
-          0% {
-            transform: translateY(0);
-          }
-          100% {
-            transform: translateY(12px);
-          }
+          0% { transform: translateY(0); }
+          100% { transform: translateY(12px); }
         }
-
-        .animate-fade-in {
-          animation: fade-in 1s ease-out;
-        }
-
-        .animate-scroll {
-          animation: scroll 1.5s ease-in-out infinite;
-        }
+        .animate-fade-in { animation: fade-in 1s ease-out; }
+        .animate-scroll { animation: scroll 1.5s ease-in-out infinite; }
       `}</style>
     </div>
   );

@@ -5,11 +5,12 @@ import { loginUser, registerUser } from '../services/api';
 
 interface LoginModalProps {
   onClose: () => void;
+  startOnRegister?: boolean;
 }
 
-export function LoginModal({ onClose }: LoginModalProps) {
+export function LoginModal({ onClose , startOnRegister = false}: LoginModalProps) {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(!startOnRegister);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');

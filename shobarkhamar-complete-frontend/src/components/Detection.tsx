@@ -140,11 +140,11 @@ export function Detection() {
 
   const handleDiseaseOk = () => {
     setShowDiseaseModal(false);
-    if (hasTreatableDisease) {
+    if (result?.ai_result && !isActuallyHealthy) {
       setShowTreatmentPromptModal(true);
-      return;
+    } else {
+      handleReset();
     }
-    handleReset();
   };
 
   return (
