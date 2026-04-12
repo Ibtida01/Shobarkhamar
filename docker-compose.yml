@@ -40,7 +40,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/shobarkhamar
       REDIS_URL: redis://redis:6379/0
       MODEL_PATH: /app/models/best_B4_wiener_False.pth
-      POULTRY_MODEL_PATH: /app/models/efficientnetv2_b4_best.pth
+      POULTRY_MODEL_PATH: /app/models/best_model.pt
     ports:
       - "18000:8000"
     volumes:

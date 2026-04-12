@@ -77,7 +77,7 @@ Shobarkhamar ("Shobar Khamar" = "Everyone's Farm" in Bengali) is an AI-powered w
   | 6 | Parasitic Diseases |
   | 7 | Viral Diseases White Tail Disease |
 
-### Poultry Disease Model — `efficientnetv2_b4_best.pth`
+### Poultry Disease Model — `best_model.pt`
 - **Architecture**: EfficientNetV2
 - **Input size**: 384×384
 - **Classes**:
@@ -112,7 +112,7 @@ cp .env.example .env
 
 # Place model files
 mkdir -p models
-# Copy best_B4_wiener_False.pth and efficientnetv2_b4_best.pth to models/
+# Copy best_B4_wiener_False.pth and best_model.pt to models/
 
 # Run the server
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
