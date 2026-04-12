@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 import { getHistory, getToken } from '../services/api';
 import type { DiagnosisResponse } from '../services/api';
+import { notificationService } from '../services/notifications';
 import {
   DISMISSED_STORAGE_KEY, getStoredIds,
-  READ_STORAGE_KEY, storeIds,
+  READ_STORAGE_KEY, isClearedNotification, setClearedAt, storeIds,
 } from '../utils/notifications';
 
 type NotifKind = 'disease' | 'healthy' | 'system' | 'info';
@@ -24,8 +25,33 @@ interface Notification {
   diagnosisId?: string;
   species?: 'fish' | 'poultry';
   diseaseName?: string;
-  confidencePercent?: number;
-  severity?: string;
+}
+
+function appNotificationToNotification(n: {
+  id: string;
+  type: 'success' | 'warning' | 'info' | 'error';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  diagnosisId?: string;
+}): Notification {
+  const lowered = n.message.toLowerCase();
+  const species = lowered.includes('poultry') ? 'poultry' : lowered.includes('fish') ? 'fish' : undefined;
+  const diseaseName = n.title.startsWith('Disease Detected:')
+    ? n.title.replace('Disease Detected:', '').trim()
+    : undefined;
+  return {
+    id: n.id,
+    kind: n.type === 'success' ? 'healthy' : n.type === 'warning' ? 'disease' : n.type === 'error' ? 'system' : 'info',
+    title: n.title,
+    message: n.message,
+    timestamp: new Date(n.timestamp),
+    read: n.read,
+    diagnosisId: n.diagnosisId,
+    species,
+    diseaseName,
+  };
 }
 
 const HEALTHY_CODES = new Set(['', 'healthy', 'healthy_fish', 'non_poultry', 'not_fish']);
@@ -34,10 +60,8 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
   const species = d.target_species?.toLowerCase().includes('poultry') ? 'poultry' : 'fish';
   const date = new Date(d.created_at);
   const code = (d.ai_result?.disease_code ?? d.ai_disease_code ?? '').toLowerCase().replace(/[\s-]+/g, '_');
-  const confidencePercent = d.ai_result?.confidence_percent ?? ((d.ai_confidence ?? 0) * 100);
   const isHealthy = d.ai_result ? d.ai_result.is_healthy : HEALTHY_CODES.has(code);
   const name = d.ai_result?.disease_name ?? (code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown');
-  const sev = d.ai_result?.severity ?? (confidencePercent >= 80 ? 'HIGH' : confidencePercent >= 60 ? 'MEDIUM' : 'LOW');
 
   if (isHealthy) {
     return {
@@ -50,9 +74,9 @@ function diagnosisToNotification(d: DiagnosisResponse): Notification {
   return {
     id: d.diagnosis_id, kind: 'disease',
     title: `Disease Detected — ${name}`,
-    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample: ${name} (${confidencePercent.toFixed(1)}% confidence, severity: ${sev}).`,
+    message: `${species === 'fish' ? 'Fish' : 'Poultry'} sample: ${name}.`,
     timestamp: date, read: false, diagnosisId: d.diagnosis_id,
-    species, diseaseName: name, confidencePercent, severity: sev,
+    species, diseaseName: name,
   };
 }
 
@@ -107,6 +131,7 @@ export function Notifications() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const loadNotifications = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
@@ -116,23 +141,35 @@ export function Notifications() {
     const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
     const dismissedIds = new Set(getStoredIds(DISMISSED_STORAGE_KEY));
     const applyMeta = (n: Notification): Notification => ({ ...n, read: readIds.has(n.id) ? true : n.read });
+    const isVisible = (n: Notification) => !dismissedIds.has(n.id) && !isClearedNotification(n.timestamp);
 
     const token = getToken();
     if (!token) {
-      setNotifications(SYSTEM_NOTIFICATIONS.map(applyMeta).filter(n => !dismissedIds.has(n.id)));
+      setNotifications(SYSTEM_NOTIFICATIONS.map(applyMeta).filter(isVisible));
       setLoading(false);
       return;
     }
 
     try {
       const data = await getHistory(0, 50);
-      const fromApi = data.diagnoses.map(diagnosisToNotification).map(applyMeta).filter(n => !dismissedIds.has(n.id));
-      const system = SYSTEM_NOTIFICATIONS.map(applyMeta).filter(n => !dismissedIds.has(n.id));
-      const merged = [...fromApi, ...system].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      const fromApi = data.diagnoses.map(diagnosisToNotification).map(applyMeta).filter(isVisible);
+      const local = notificationService.getAll()
+        .map(appNotificationToNotification)
+        .map(applyMeta)
+        .filter(isVisible);
+      const system = SYSTEM_NOTIFICATIONS.map(applyMeta).filter(isVisible);
+      const merged = [...local, ...fromApi, ...system].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       setNotifications(merged);
     } catch {
       setError('Could not load notifications from server.');
-      setNotifications(SYSTEM_NOTIFICATIONS.map(applyMeta).filter(n => !dismissedIds.has(n.id)));
+      const local = notificationService.getAll()
+        .map(appNotificationToNotification)
+        .map(applyMeta)
+        .filter(isVisible);
+      setNotifications([
+        ...local,
+        ...SYSTEM_NOTIFICATIONS.map(applyMeta).filter(isVisible),
+      ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -150,11 +187,15 @@ export function Notifications() {
 
   const markAsRead = (id: string) => {
     storeIds(READ_STORAGE_KEY, [...getStoredIds(READ_STORAGE_KEY), id]);
+    if (id.startsWith('notif_')) {
+      notificationService.markAsRead(id);
+    }
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
   const markAllRead = () => {
     storeIds(READ_STORAGE_KEY, [...getStoredIds(READ_STORAGE_KEY), ...notifications.map(n => n.id)]);
+    notificationService.markAllAsRead();
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
@@ -164,8 +205,10 @@ export function Notifications() {
   };
 
   const clearAll = () => {
-    storeIds(DISMISSED_STORAGE_KEY, notifications.map(n => n.id));
+    setClearedAt(Date.now());
     setNotifications([]);
+    setSuccessMessage('All previous notifications cleared. New diagnosis notifications will still appear here.');
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -218,6 +261,7 @@ export function Notifications() {
           </div>
 
           {error && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">{error}</div>}
+          {successMessage && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">{successMessage}</div>}
 
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
@@ -252,10 +296,10 @@ export function Notifications() {
                       </div>
                       <p className="mt-1 text-sm text-gray-600">{n.message}</p>
                       <div className="mt-2 flex gap-3">
-                        {n.kind === 'disease' && n.diagnosisId && (
+                        {n.kind === 'disease' && (
                           <button onClick={(e) => {
                             e.stopPropagation(); markAsRead(n.id);
-                            navigate('/treatment', { state: { type: n.species, disease: n.diseaseName, confidence: n.confidencePercent, severity: n.severity, diagnosisId: n.diagnosisId } });
+                            navigate('/treatment', { state: { type: n.species, disease: n.diseaseName, diagnosisId: n.diagnosisId } });
                           }} className="text-xs font-semibold text-red-600 hover:text-red-700 underline underline-offset-2 flex items-center gap-1">
                             <Microscope className="w-3 h-3" /> View treatment
                           </button>

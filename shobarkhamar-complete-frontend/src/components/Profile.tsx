@@ -135,9 +135,9 @@ export function Profile() {
               <button
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 disabled={saving}
-                className="ml-auto flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+                className="ml-auto flex min-w-[108px] items-center justify-center gap-2 bg-green-600 px-6 py-3 text-base font-semibold text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : isEditing ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
                 {saving ? 'Saving...' : isEditing ? 'Save' : 'Edit'}
               </button>
             </div>
