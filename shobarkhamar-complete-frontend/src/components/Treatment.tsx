@@ -42,7 +42,7 @@ export function Treatment() {
   // const severity = state?.severity || '';
   // const confidence = state?.confidence || null;
   const image = uploadedImage || state?.image || (type === 'fish' ? fishSampleImage : poultrySampleImage);
-  const fullName = state?.fullName || (type === 'fish' ? 'Epizootic Ulcerative Syndrome' : 'Newcastle Disease');
+  //const fullName = state?.fullName || (type === 'fish' ? 'Epizootic Ulcerative Syndrome' : 'Newcastle Disease');
   const treatment = state?.treatment || (type === 'fish' ? 'Use insecticide' : 'Use antibiotics');
 
   useEffect(() => {
