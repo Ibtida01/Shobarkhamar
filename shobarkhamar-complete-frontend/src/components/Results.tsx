@@ -1,17 +1,15 @@
 import { useLocation, Link } from 'react-router';
-import { ArrowLeft, AlertCircle, CheckCircle, Pill, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle, Pill } from 'lucide-react';
 
 interface DetectionResult {
   isHealthy: boolean;
   disease?: string;
-  confidence: number;
   symptoms: string[];
   treatment: {
     immediate: string[];
     medication: string[];
     prevention: string[];
   };
-  severity: 'low' | 'medium' | 'high';
 }
 
 export function Results() {
@@ -20,19 +18,6 @@ export function Results() {
     result: DetectionResult;
     image: string;
     type: string;
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'low':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'medium':
-        return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'high':
-        return 'text-red-600 bg-red-50 border-red-200';
-      default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
   };
 
   return (
@@ -73,19 +58,11 @@ export function Results() {
                 </div>
               </div>
             ) : (
-              <div className={`flex items-start gap-3 p-4 border rounded-lg mb-4 ${getSeverityColor(result.severity)}`}>
+              <div className="flex items-start gap-3 p-4 border rounded-lg mb-4 text-red-600 bg-red-50 border-red-200">
                 <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold">{result.disease}</p>
-                  <p className="text-sm mt-1">
-                    Confidence: {result.confidence}%
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      Severity: {result.severity.charAt(0).toUpperCase() + result.severity.slice(1)}
-                    </span>
-                  </div>
+                  <p className="text-sm mt-1">A disease was detected in this sample.</p>
                 </div>
               </div>
             )}

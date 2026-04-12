@@ -178,6 +178,24 @@ export interface DiagnosisResponse {
   final_disease?: DiseaseResult;
 }
 
+export interface QuickPredictApiResponse {
+  primary_prediction: {
+    disease_code: string;
+    disease_name: string;
+    confidence: number;
+    confidence_percent: number;
+    severity: string;
+  };
+  all_predictions: Array<{
+    disease_code: string;
+    disease_name: string;
+    confidence: number;
+    confidence_percent: number;
+  }>;
+  is_healthy: boolean;
+  needs_treatment: boolean;
+}
+
 export interface ImageUploadResponse {
   diagnosis_image_id: string;
   image_url: string;
@@ -229,6 +247,34 @@ export async function analyzeImage(
   const uploadResult = await uploadDiagnosisImage(diagnosis.diagnosis_id, file, species);
 
   return uploadResult.diagnosis ?? diagnosis;
+}
+
+export async function quickAnalyzeImage(
+  file: File,
+  species: TargetSpecies
+): Promise<Partial<DiagnosisResponse>> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const endpoint = species.toLowerCase() === 'poultry'
+    ? `${BASE_URL}/detection/poultry/predict`
+    : `${BASE_URL}/detection/fish/predict`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
+
+  const data = await handleResponse<QuickPredictApiResponse>(res);
+
+  return {
+    ai_result: {
+      ...data.primary_prediction,
+      is_healthy: data.is_healthy,
+      needs_treatment: data.needs_treatment,
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -129,11 +129,6 @@ export function History() {
                               <p className={`font-semibold ${isHealthy ? 'text-green-600' : 'text-red-600'}`}>
                                 {isHealthy ? 'Healthy' : disease.disease_name}
                               </p>
-                              {!isHealthy && (
-                                <p className="text-sm text-gray-500">
-                                  Confidence: {disease.confidence_percent}% · Severity: {disease.severity}
-                                </p>
-                              )}
                             </div>
                           </div>
                         ) : (

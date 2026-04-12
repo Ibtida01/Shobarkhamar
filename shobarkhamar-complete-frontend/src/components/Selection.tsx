@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Fish, Bird, LogOut, ArrowLeft, User, Bell, Building2, BookOpen, MessageSquare } from 'lucide-react';
+import { Fish, Bird, LogOut, User, Bell, Building2, BookOpen, MessageSquare } from 'lucide-react';
 import fishImage from 'figma:asset/62f52d45234fa34e0569cc9cc6fc66e654838740.png';
 import poultryImage from 'figma:asset/42eeaf1bf402682fb5a784bdf4ac8a449b212110.png';
 import { getHistory, getToken } from '../services/api';
-import { getUnreadNotificationCount, getStoredIds, READ_STORAGE_KEY, DISMISSED_STORAGE_KEY } from '../utils/notifications';
+import { notificationService } from '../services/notifications';
+import { getStoredIds, DISMISSED_STORAGE_KEY, READ_STORAGE_KEY, isClearedNotification } from '../utils/notifications';
 
 const SYSTEM_NOTIFICATIONS = [
   { id: 'sys-1', read: false },
@@ -18,15 +19,34 @@ export function Selection() {
 
   const loadUnreadCount = async () => {
     const token = getToken();
+    const dismissedIds = new Set(getStoredIds(DISMISSED_STORAGE_KEY));
+    const readIds = new Set(getStoredIds(READ_STORAGE_KEY));
+    const localUnread = notificationService.getAll().filter(
+      (n) => !n.read && !readIds.has(n.id) && !dismissedIds.has(n.id) && !isClearedNotification(n.timestamp)
+    ).length;
+
+    const countServerUnread = (diagnoses: { diagnosis_id: string; created_at?: string }[]) =>
+      diagnoses.filter(
+        (d) =>
+          !readIds.has(d.diagnosis_id) &&
+          !dismissedIds.has(d.diagnosis_id) &&
+          !isClearedNotification(d.created_at ?? new Date().toISOString())
+      ).length;
+
+    const countSystemUnread = () =>
+      SYSTEM_NOTIFICATIONS.filter(
+        (n) => !n.read && !readIds.has(n.id) && !dismissedIds.has(n.id)
+      ).length;
+
     if (!token) {
-      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countSystemUnread() + localUnread);
       return;
     }
     try {
       const data = await getHistory(0, 50);
-      setUnreadCount(getUnreadNotificationCount(data.diagnoses, SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countServerUnread(data.diagnoses) + countSystemUnread() + localUnread);
     } catch {
-      setUnreadCount(getUnreadNotificationCount([], SYSTEM_NOTIFICATIONS));
+      setUnreadCount(countSystemUnread() + localUnread);
     }
   };
 
@@ -51,8 +71,7 @@ export function Selection() {
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="text-gray-600 hover:text-gray-900"><ArrowLeft className="w-6 h-6" /></Link>
+          <div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
               <p className="text-sm text-gray-600">Welcome back, {userName}</p>

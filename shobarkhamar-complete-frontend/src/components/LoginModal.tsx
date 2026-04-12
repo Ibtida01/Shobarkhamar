@@ -25,19 +25,20 @@ export function LoginModal({ onClose }: LoginModalProps) {
 
     try {
       let response;
+      const normalizedEmail = email.trim().toLowerCase();
 
       if (isLogin) {
-        response = await loginUser({ email, password });
+        response = await loginUser({ email: normalizedEmail, password });
       } else {
-        response = await registerUser({ name, email, password, phone, address });
+        response = await registerUser({ name, email: normalizedEmail, password, phone, address });
       }
 
       // Store tokens + user info
       localStorage.setItem('authToken', response.access_token);
       localStorage.setItem('refreshToken', response.refresh_token);
       localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', email);
-      localStorage.setItem('userName', response.user?.name ?? name ?? email);
+      localStorage.setItem('userEmail', normalizedEmail);
+      localStorage.setItem('userName', response.user?.name ?? name ?? normalizedEmail);
       localStorage.setItem('userId', response.user?.user_id ?? '');
 
       onClose();
