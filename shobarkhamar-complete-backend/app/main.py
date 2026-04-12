@@ -22,7 +22,7 @@ except ImportError:
     POULTRY_AI_AVAILABLE = False
 
 FISH_MODEL_PATH    = os.getenv("MODEL_PATH",         "/app/models/best_B4_wiener_False.pth")
-POULTRY_MODEL_PATH = os.getenv("POULTRY_MODEL_PATH", "/app/models/efficientnetv2_b4_best.pth")
+POULTRY_MODEL_PATH = os.getenv("POULTRY_MODEL_PATH", "/app/models/best_model.pt")
 
 
 def _load_model(available, cls, path, label):

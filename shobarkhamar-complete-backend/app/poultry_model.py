@@ -1,12 +1,13 @@
 """
 Model file: best_model.pt
+Architecture: MobileNet_V3_Large
 """
 
-import os
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
+from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 from PIL import Image
-from pathlib import Path
 from typing import Dict
 
 POULTRY_CLASS_NAMES = [
@@ -14,14 +15,14 @@ POULTRY_CLASS_NAMES = [
     "healthy",
     "ncd",
     "non_poultry",
-    "other_disease"
+    "other_disease",
     "salmo",
 ]
 
 HEALTHY_CLASSES = {"healthy", "non_poultry"}
 
 SEVERITY_MAP = {
-    "ncd": "CRITICAL",
+    "ncd":   "CRITICAL",
     "salmo": "HIGH",
     "cocci": "HIGH",
 }
@@ -36,15 +37,23 @@ class PoultryDiseaseDetector:
 
         print(f"Loading poultry model on device: {self.device}")
 
-        checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
-        self.model = self._build_model(checkpoint)
-        self.model.eval()
+        # Build MobileNetV3-Large with custom head (matches training)
+        self.model = mobilenet_v3_large(weights=None)
+        in_features = self.model.classifier[3].in_features
+        self.model.classifier[3] = nn.Sequential(
+            nn.Dropout(p=0.4, inplace=True),
+            nn.Linear(in_features, len(POULTRY_CLASS_NAMES)),
+        )
+
+        state_dict = torch.load(model_path, map_location=self.device, weights_only=False)
+        self.model.load_state_dict(state_dict)
         self.model.to(self.device)
+        self.model.eval()
 
         self.class_names = POULTRY_CLASS_NAMES
 
         self.transform = transforms.Compose([
-            transforms.Resize((384, 384)),
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
@@ -53,49 +62,6 @@ class PoultryDiseaseDetector:
         ])
         print("✓ Poultry model loaded successfully")
         print(f"  Classes: {self.class_names}")
-
-    def _build_model(self, checkpoint):
-        if isinstance(checkpoint, torch.nn.Module):
-            return checkpoint
-
-        state_dict = checkpoint.get("state_dict", checkpoint)
-        arch = self._infer_arch(state_dict)
-        num_classes = self._infer_num_classes(state_dict)
-
-        if num_classes != len(POULTRY_CLASS_NAMES):
-            raise ValueError(
-                f"Model has {num_classes} classes, but POULTRY_CLASS_NAMES has {len(POULTRY_CLASS_NAMES)}."
-            )
-
-        model = self._make_efficientnetv2(arch, num_classes)
-        model.load_state_dict(state_dict)
-        return model
-
-    def _infer_arch(self, state_dict):
-        stem = tuple(state_dict["features.0.0.weight"].shape)
-        last = tuple(state_dict["features.8.0.weight"].shape)
-        variants = {
-            ((24, 3, 3, 3), (1280, 256, 1, 1)): "s",
-            ((24, 3, 3, 3), (1280, 512, 1, 1)): "m",
-            ((32, 3, 3, 3), (1280, 640, 1, 1)): "l",
-        }
-        if (stem, last) not in variants:
-            raise ValueError(f"Unknown EfficientNetV2 checkpoint shape: stem={stem}, last={last}")
-        return variants[(stem, last)]
-
-    def _infer_num_classes(self, state_dict):
-        w = state_dict.get("classifier.1.weight")
-        b = state_dict.get("classifier.1.bias")
-        if w is not None:
-            return int(w.shape[0])
-        if b is not None:
-            return int(b.shape[0])
-        raise ValueError("Cannot infer num_classes from checkpoint.")
-
-    def _make_efficientnetv2(self, arch, num_classes):
-        from torchvision.models import efficientnet_v2_s, efficientnet_v2_m, efficientnet_v2_l
-        constructors = {"s": efficientnet_v2_s, "m": efficientnet_v2_m, "l": efficientnet_v2_l}
-        return constructors[arch](weights=None, num_classes=num_classes)
 
     def predict(self, image_path: str, top_k: int = 3) -> Dict:
         img = Image.open(image_path).convert("RGB")
