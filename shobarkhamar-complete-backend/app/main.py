@@ -46,8 +46,9 @@ async def lifespan(app: FastAPI):
     await init_db()
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-    app.state.ai_detector      = _load_model(FISH_AI_AVAILABLE,    DiseaseDetector,        FISH_MODEL_PATH,    "Fish")
-    app.state.poultry_detector = _load_model(POULTRY_AI_AVAILABLE, PoultryDiseaseDetector, POULTRY_MODEL_PATH, "Poultry")
+    
+    app.state.ai_detector      = _load_model(FISH_AI_AVAILABLE,    DiseaseDetector if FISH_AI_AVAILABLE else None,       FISH_MODEL_PATH,    "Fish")
+    app.state.poultry_detector = _load_model(POULTRY_AI_AVAILABLE, PoultryDiseaseDetector if POULTRY_AI_AVAILABLE else None, POULTRY_MODEL_PATH, "Poultry")
 
     yield
 
