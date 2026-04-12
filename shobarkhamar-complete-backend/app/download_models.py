@@ -1,9 +1,12 @@
 import os
 import gdown
 
+# Download models from Google Drive links:
+# best_B4_wiener_False.pth:   https://drive.google.com/file/d/1KJFskoRvKBEbMsFPU4hETYenH8Rw7QTR/view?usp=drive_link
+# best_model.pt:             https://drive.google.com/file/d/1-jYbc4N1qF41GzQxu9HqjxYorhS8exI7/view?usp=drive_link
 MODELS = {
-    "best_B4_wiener_False.pth":   "1LE9uBQDMPULaNxOu_SKl4fTRqoykNSVo",
-    "efficientnetv2_b4_best.pth": "1TTo-GUvJ-m9qf3Dk3Gux0mMT-7Ev6ydI",
+    "best_B4_wiener_False.pth":   "1KJFskoRvKBEbMsFPU4hETYenH8Rw7QTR",
+    "best_model.pt": "1-jYbc4N1qF41GzQxu9HqjxYorhS8exI7",
 }
 
 os.makedirs("/app/models", exist_ok=True)

@@ -1,6 +1,5 @@
 """
-Poultry Disease Detector — EfficientNetV2 adapter.
-Model file: efficientnetv2_b4_best.pth
+Model file: best_model.pt
 """
 
 import os
@@ -11,19 +10,20 @@ from pathlib import Path
 from typing import Dict
 
 POULTRY_CLASS_NAMES = [
-    "coccidiosis",
+    "cocci",
     "healthy",
-    "new_castle_disease",
+    "ncd",
     "non_poultry",
-    "salmonella",
+    "other_disease"
+    "salmo",
 ]
 
 HEALTHY_CLASSES = {"healthy", "non_poultry"}
 
 SEVERITY_MAP = {
-    "new_castle_disease": "CRITICAL",
-    "salmonella": "HIGH",
-    "coccidiosis": "HIGH",
+    "ncd": "CRITICAL",
+    "salmo": "HIGH",
+    "cocci": "HIGH",
 }
 
 
