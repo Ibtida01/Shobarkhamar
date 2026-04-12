@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY shobarkhamar-complete-backend/requirements.txt .
 
 RUN pip install --upgrade pip && \
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
@@ -21,7 +21,7 @@ RUN pip install --upgrade pip && \
 
 RUN python -c "from torchvision.models import efficientnet_b4, EfficientNet_B4_Weights; efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)"
 
-COPY . .
+COPY shobarkhamar-complete-backend/ .
 
 RUN python shobarkhamar-complete-backend/download_models.py
 
