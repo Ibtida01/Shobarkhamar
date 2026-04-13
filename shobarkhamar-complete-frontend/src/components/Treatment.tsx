@@ -6,7 +6,6 @@ import fishSampleImage from 'figma:asset/81061a8ea05a453e7b182b6e9e85ca8c1777b80
 import poultrySampleImage from 'figma:asset/dfc44b2571f492b90efd940d77993d9db48d5a82.png';
 import { API_ORIGIN, getDiagnosis } from '../services/api';
 
-// Generate UUID
 function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -19,61 +18,48 @@ export function Treatment() {
   const location = useLocation();
   const navigate = useNavigate();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  
-  // Extract state - use optional chaining safely
+
   const state = location.state as {
     from?: string;
     type?: string;
     disease?: string;
-    // fullName?: string;
     treatment?: string;
     image?: string;
     diagnosisId?: string;
+    confidence?: number;
+    severity?: string;
   } | undefined;
 
-  // Get type from URL params as fallback
   const urlParams = new URLSearchParams(window.location.search);
   const typeFromUrl = urlParams.get('type');
-  
+
   const type = state?.type || typeFromUrl || 'fish';
   const cameFromNotifications = state?.from === 'notifications';
   const disease = state?.disease || '';
   const diagnosisId = state?.diagnosisId;
-  // const severity = state?.severity || '';
-  // const confidence = state?.confidence || null;
+  const confidence = state?.confidence ?? null;
+  const severity = state?.severity || '';
   const image = uploadedImage || state?.image || (type === 'fish' ? fishSampleImage : poultrySampleImage);
-  //const fullName = state?.fullName || (type === 'fish' ? 'Epizootic Ulcerative Syndrome' : 'Newcastle Disease');
-  const treatment = state?.treatment || (type === 'fish' ? 'Use insecticide' : 'Use antibiotics');
 
   useEffect(() => {
     let isMounted = true;
-
     async function loadDiagnosisImage() {
       if (!diagnosisId) return;
-
       try {
         const diagnosis = await getDiagnosis(diagnosisId);
         const latestImage = diagnosis.images?.[0]?.image_url;
         if (!latestImage || !isMounted) return;
-
         const resolvedImage = latestImage.startsWith('http')
           ? latestImage
           : `${API_ORIGIN}${latestImage.startsWith('/') ? latestImage : `/${latestImage}`}`;
-
         setUploadedImage(resolvedImage);
-      } catch {
-        // Fall back to the route image or static preview if diagnosis lookup fails.
-      }
+      } catch { /* fall back to static image */ }
     }
-
     loadDiagnosisImage();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [diagnosisId]);
 
-// ── Dynamic treatment based on actual AI disease ──
-  const diseaseKey = disease?.toLowerCase().replace(/\s+/g, '_') || '';
+  const diseaseKey = disease?.toLowerCase().replace(/[\s-]+/g, '_') || '';
 
   const treatmentMap: Record<string, any> = {
     coccidiosis: {
@@ -81,114 +67,132 @@ export function Treatment() {
       treatment_name: 'Coccidiosis Treatment Protocol',
       medication_name: 'Amprolium or Sulfonamides',
       application_method: 'ORAL',
-      dosage_text: 'Amprolium: 0.012% in drinking water for 5–7 days',
+      dosage_text: 'Amprolium: 0.012% in drinking water for 5–7 days. Vitamin K supplement to reduce bleeding.',
       duration_days: 7,
       precaution: 'Keep litter dry. Isolate affected birds. Ensure clean water supply. Disinfect housing regularly.',
-      alternatives_note: 'Alternative: Toltrazuril (25mg/kg bodyweight). Vitamin K supplement helps reduce bleeding.',
+      alternatives_note: 'Alternative: Toltrazuril (25mg/kg bodyweight). Sulfadimethoxine in water for 6 days.',
+      reference: 'Chapman et al. (2010). A review of coccidiosis in poultry. Avian Pathology, 39(1), 1–6. https://doi.org/10.1080/03079450903488233',
     },
     new_castle_disease: {
       treatment_id: 'TRT-POULTRY-NEWCASTLE',
       treatment_name: 'Newcastle Disease Protocol',
       medication_name: 'Oxytetracycline + Multivitamins',
       application_method: 'ORAL',
-      dosage_text: '50mg Oxytetracycline per kg body weight + Vitamin A, D, E supplementation',
+      dosage_text: '50mg Oxytetracycline per kg body weight + Vitamin A, D, E supplementation.',
       duration_days: 7,
-      precaution: 'Isolate infected birds immediately. Disinfect all equipment. Vaccinate healthy birds.',
-      alternatives_note: 'Supportive therapy with electrolytes. Consider Enrofloxacin (10mg/kg) for secondary infections.',
+      precaution: 'Isolate infected birds immediately. Disinfect all equipment. Vaccinate healthy birds. No specific cure — supportive care only.',
+      alternatives_note: 'Enrofloxacin (10mg/kg) for secondary infections. Electrolyte supplements to prevent dehydration.',
+      reference: 'OIE (2021). Newcastle Disease. OIE Terrestrial Manual. https://www.oie.int/en/disease/newcastle-disease/',
     },
     salmonella: {
       treatment_id: 'TRT-POULTRY-SALMONELLA',
       treatment_name: 'Salmonellosis Treatment Protocol',
       medication_name: 'Enrofloxacin or Trimethoprim-Sulfamethoxazole',
       application_method: 'ORAL',
-      dosage_text: 'Enrofloxacin: 10mg/kg bodyweight for 5 days',
+      dosage_text: 'Enrofloxacin: 10mg/kg bodyweight for 5 days. Always perform sensitivity testing first.',
       duration_days: 5,
       precaution: 'Strict biosecurity. Wash hands thoroughly. Disinfect all surfaces. Isolate affected birds.',
-      alternatives_note: 'Alternative: Ampicillin or Chloramphenicol. Always do sensitivity testing before treatment.',
+      alternatives_note: 'Alternative: Ampicillin or Chloramphenicol based on sensitivity results.',
+      reference: 'EFSA (2019). Salmonella control in poultry flocks. EFSA Journal, 17(2), e05596.',
     },
     bacterial_red_disease: {
       treatment_id: 'TRT-FISH-RED-DISEASE',
-      treatment_name: 'Bacterial Red Disease Protocol',
-      medication_name: 'Oxytetracycline + Salt',
+      treatment_name: 'Bacterial Red Disease (Hemorrhagic Septicemia) Protocol',
+      medication_name: 'Kanaplex / Maracyn 2 / API Fin & Body Cure + Aquarium Salt',
       application_method: 'IN_WATER',
-      dosage_text: '50mg Oxytetracycline per liter + 3–5g salt per liter for 5 days',
-      duration_days: 5,
-      precaution: 'Improve water quality. Reduce stocking density. Remove dead fish immediately.',
-      alternatives_note: 'Alternative: Florfenicol or Kanamycin. Consult specialist for dosage.',
+      dosage_text: 'Broad-spectrum antibiotic as per label. Aquarium salt 1–3 tbsp per 5 gallons to reduce stress and fluid buildup.',
+      duration_days: 7,
+      precaution: 'Isolate affected fish. Perform 50% water changes. Improve filtration and oxygenation.',
+      alternatives_note: 'Enrofloxacin, Oxytetracycline, or Doxycycline via feed or bath. Topical potassium permanganate for ulcers.',
+      reference: 'AquaInfo (2024). Red Blotches or Septicemia in Aquarium Fish. https://aquainfo.nl/en/10-3-6-red-blotches-or-septicemia-in-aquarium-fish/',
+    },
+    bacterial_diseases___aeromoniasis: {
+      treatment_id: 'TRT-FISH-AEROMONIASIS',
+      treatment_name: 'Aeromoniasis Treatment Protocol',
+      medication_name: 'Enrofloxacin or Oxytetracycline',
+      application_method: 'IN_WATER',
+      dosage_text: 'Enrofloxacin or Oxytetracycline via medicated feed or bath. Potassium permanganate or hydrogen peroxide on ulcers.',
+      duration_days: 10,
+      precaution: 'Improve water quality and reduce stress immediately. Quarantine infected fish. Remove carbon from filters during treatment.',
+      alternatives_note: 'Doxycycline as alternative antibiotic. Hydrogen peroxide baths for external ulcer treatment.',
+      reference: 'Egyptian Journal of Aquatic Biology & Fisheries (2023). https://ejabf.journals.ekb.eg/article_264476',
     },
     bacterial_gill_disease: {
       treatment_id: 'TRT-FISH-GILL-DISEASE',
       treatment_name: 'Bacterial Gill Disease Protocol',
-      medication_name: 'Chloramine-T or Potassium Permanganate',
+      medication_name: 'Oxytetracycline or Florfenicol + Chloramine-T bath',
       application_method: 'BATH',
-      dosage_text: 'Chloramine-T: 10mg/L for 1 hour bath treatment',
+      dosage_text: 'Chloramine-T: 10 ppm 1-hour flush. OR Potassium Permanganate: 1–2 ppm. Medicated feed with Oxytetracycline or Florfenicol.',
       duration_days: 7,
-      precaution: 'Improve aeration. Reduce organic load. Monitor ammonia levels closely.',
-      alternatives_note: 'Alternative: Formalin bath (150–250mg/L for 30–60 min). Remove activated carbon during treatment.',
+      precaution: 'Improve water quality first — reduce waste, increase oxygen. Perform 25–50% water changes. Remove activated carbon before treatment.',
+      alternatives_note: 'Nitrofurazone, Tetracycline, or Nifurpirinol products (e.g., Seachem Kanaplex). Quaternary ammonium compounds 1–2 ppm.',
+      reference: 'GLFC (1983). Bacterial Gill Disease. Special Publication 83-2, Chapter 20. https://www.glfc.org/pubs/SpecialPubs/sp83_2/pdf/chap20.pdf',
     },
     fungal_diseases_saprolegniasis: {
       treatment_id: 'TRT-FISH-SAPROLEGNIASIS',
-      treatment_name: 'Saprolegniasis Treatment Protocol',
-      medication_name: 'Potassium Permanganate or Salt',
+      treatment_name: 'Saprolegniasis (Fungal) Treatment Protocol',
+      medication_name: 'API Pimafix or Seachem KanaPlex + Salt Bath',
       application_method: 'BATH',
-      dosage_text: 'Potassium Permanganate: 2mg/L for 1 hour OR salt bath 30g/L for 10 minutes',
+      dosage_text: 'Salt bath: 1–2 tsp per gallon for 5–10 min. OR Potassium Permanganate bath for severe infections.',
       duration_days: 10,
-      precaution: 'Remove damaged or dead fish. Improve water quality. Avoid physical injury to fish.',
-      alternatives_note: 'Alternative: Malachite green (0.1mg/L) where permitted. Bronopol-based products also effective.',
+      precaution: 'Clean tank and check water parameters. Partial water change (25–30%). Isolate affected fish. Do not use Malachite Green on eggs.',
+      alternatives_note: 'Hydrogen peroxide bath — effective per published studies. Commercial antifungal: API Pimafix.',
+      reference: 'Aquaculture, Fish & Fisheries (2024). Saprolegniasis treatment review. https://onlinelibrary.wiley.com/doi/full/10.1002/aff2.200',
     },
     parasitic_diseases: {
       treatment_id: 'TRT-FISH-PARASITIC',
       treatment_name: 'Parasitic Disease Protocol',
-      medication_name: 'Formalin + Malachite Green',
+      medication_name: 'Formalin bath + Medicated Feed',
       application_method: 'BATH',
-      dosage_text: 'Formalin 200mg/L for 30–60 minutes + Malachite Green 0.1mg/L',
+      dosage_text: 'Long-term bath: medicated water to combat free-swimming parasites. Short-term dip: salt or formalin for external parasites.',
       duration_days: 10,
-      precaution: 'Remove carbon filters during treatment. Increase aeration. Quarantine new fish.',
-      alternatives_note: 'Alternative: Praziquantel for flukes (2–10mg/L bath). Trichlorfon for crustacean parasites.',
+      precaution: 'Quarantine new fish before introduction. Increase aeration. Remove carbon filters during treatment.',
+      alternatives_note: 'Praziquantel for flukes. Sodium chloride baths for external parasites. Medicated food for internal parasites.',
+      reference: 'PMC / NCBI (2023). Parasitic disease treatment in aquaculture. https://pmc.ncbi.nlm.nih.gov/articles/PMC10090776/',
     },
     viral_diseases_white_tail_disease: {
       treatment_id: 'TRT-FISH-WHITE-TAIL',
-      treatment_name: 'White Tail Disease Supportive Care',
-      medication_name: 'Antibiotic + Immunostimulant',
+      treatment_name: 'White Tail Disease — Supportive Care Only',
+      medication_name: 'No antiviral available — supportive care only',
       application_method: 'ORAL',
-      dosage_text: 'No direct antiviral. Oxytetracycline 50mg/L to prevent secondary bacterial infections.',
+      dosage_text: 'No direct treatment. Oxytetracycline 50mg/L to prevent secondary bacterial infections. Vitamin C (500mg/kg feed) to boost immunity.',
       duration_days: 14,
-      precaution: 'No cure — prevention through vaccination and biosecurity is critical. Destroy severely infected fish.',
-      alternatives_note: 'Focus on biosecurity. Vitamin C supplementation (500mg/kg feed) to boost immunity.',
+      precaution: 'No cure — prevention through biosecurity is critical. Destroy severely infected animals.',
+      alternatives_note: 'Focus entirely on biosecurity and prevention. Vaccination research ongoing but not commercially available.',
+      reference: 'WOAH (2009). White Tail Disease of Freshwater Prawns. https://www.woah.org/fileadmin/Home/eng/Health_standards/aahm/2009/2.2.06_WTD.pdf',
     },
   };
 
   const treatmentData = treatmentMap[diseaseKey] || {
     treatment_id: `TRT-${generateUUID().slice(0, 8).toUpperCase()}`,
-    treatment_name: `${disease} Treatment Protocol`,
+    treatment_name: disease ? `${disease} Treatment Protocol` : 'Treatment Protocol',
     medication_name: 'Consult a veterinarian',
     application_method: null,
     dosage_text: 'Please consult a qualified veterinarian for proper dosage.',
     duration_days: null,
     precaution: 'Isolate affected animals. Maintain good hygiene. Monitor closely.',
     alternatives_note: 'A veterinarian can recommend the best treatment based on your specific situation.',
+    reference: null,
     requires_veterinarian: true,
   };
 
-  // Mock prescription details
   const prescription = {
     id: `RX-${Date.now()}`,
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
   };
 
   const getApplicationMethodDisplay = (method: string) => {
-    const methods: { [key: string]: { icon: any, text: string, description: string } } = {
-      'IN_WATER': { icon: Droplet, text: 'In Water', description: 'Dissolve medication in water' },
-      'ORAL': { icon: Pill, text: 'Oral', description: 'Mix with feed or direct administration' },
-      'FEED': { icon: Pill, text: 'Feed', description: 'Mix with regular feed' },
-      'TOPICAL': { icon: Syringe, text: 'Topical', description: 'Apply directly to affected area' },
-      'INJECTION': { icon: Syringe, text: 'Injection', description: 'Intramuscular or subcutaneous injection' },
-      'DIP': { icon: Droplet, text: 'Dip', description: 'Short-term immersion bath' },
-      'SPRAY': { icon: Droplet, text: 'Spray', description: 'Spray application' },
-      'EYE_DROPS': { icon: Droplet, text: 'Eye Drops', description: 'Direct application to eyes' },
-      'BATH': { icon: Droplet, text: 'Bath', description: 'Extended immersion treatment' }
+    const methods: { [key: string]: { icon: any; text: string; description: string } } = {
+      IN_WATER:  { icon: Droplet, text: 'In Water',   description: 'Dissolve medication in water' },
+      ORAL:      { icon: Pill,    text: 'Oral',        description: 'Mix with feed or direct administration' },
+      FEED:      { icon: Pill,    text: 'Feed',        description: 'Mix with regular feed' },
+      TOPICAL:   { icon: Syringe, text: 'Topical',     description: 'Apply directly to affected area' },
+      INJECTION: { icon: Syringe, text: 'Injection',   description: 'Intramuscular or subcutaneous injection' },
+      DIP:       { icon: Droplet, text: 'Dip',         description: 'Short-term immersion bath' },
+      SPRAY:     { icon: Droplet, text: 'Spray',       description: 'Spray application' },
+      BATH:      { icon: Droplet, text: 'Bath',        description: 'Extended immersion treatment' },
     };
-    return methods[method] || methods['ORAL'];
+    return methods[method] ?? methods['ORAL'];
   };
 
   const requiresVeterinarian = Boolean(treatmentData.requires_veterinarian);
@@ -196,6 +200,7 @@ export function Treatment() {
     ? getApplicationMethodDisplay(treatmentData.application_method)
     : null;
   const ApplicationIcon = applicationMethod?.icon;
+
   const protocolSteps = useMemo(() => {
     if (requiresVeterinarian) {
       return [
@@ -207,47 +212,39 @@ export function Treatment() {
         'Monitor animals closely and return for follow-up if symptoms worsen.',
       ];
     }
-
     return [
-      'Isolate affected animals immediately to prevent disease spread',
-      `Administer medication as per prescription (${treatmentData.dosage_text})`,
-      `Use ${applicationMethod?.text.toLowerCase()} application method: ${applicationMethod?.description.toLowerCase()}`,
-      'Maintain optimal environmental conditions (temperature, water quality, etc.)',
-      'Monitor animals daily for improvement or adverse reactions',
-      `Continue treatment for full ${treatmentData.duration_days} days period`,
-      'Schedule follow-up examination after treatment completion',
+      'Isolate affected animals immediately to prevent disease spread.',
+      `Administer medication as per prescription (${treatmentData.dosage_text}).`,
+      applicationMethod ? `Use ${applicationMethod.text.toLowerCase()} application method: ${applicationMethod.description.toLowerCase()}.` : 'Follow prescribed application method.',
+      'Maintain optimal environmental conditions (temperature, water quality, etc.).',
+      'Monitor animals daily for improvement or adverse reactions.',
+      treatmentData.duration_days ? `Continue treatment for full ${treatmentData.duration_days} days.` : 'Complete the full treatment course.',
+      'Schedule follow-up examination after treatment completion.',
     ];
-  }, [applicationMethod, requiresVeterinarian, treatmentData.dosage_text, treatmentData.duration_days]);
+  }, [applicationMethod, requiresVeterinarian, treatmentData]);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('userName');
     navigate('/');
   };
 
-  const handleAnalyzeAnother = () => {
-    navigate(`/detection?type=${type}`);
-  };
+  const handleAnalyzeAnother = () => navigate(`/detection?type=${type}`);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to={cameFromNotifications ? "/notifications" : "/selection"} className="text-gray-600 hover:text-gray-900">
-                <ArrowLeft className="w-6 h-6" />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Treatment Details</h1>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to={cameFromNotifications ? '/notifications' : '/selection'} className="text-gray-600 hover:text-gray-900">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900">Treatment Details</h1>
           </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
+            <LogOut className="w-5 h-5" /><span>Logout</span>
+          </button>
         </div>
       </header>
 
@@ -255,43 +252,31 @@ export function Treatment() {
         {/* Disease Summary Card */}
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <div className="flex items-center gap-3 mb-6">
-            {type === 'fish' ? (
-              <Fish className="w-8 h-8 text-blue-600" />
-            ) : (
-              <img src={poultryIcon} alt="Poultry" className="w-8 h-8 text-green-600" />
-            )}
+            {type === 'fish'
+              ? <Fish className="w-8 h-8 text-blue-600" />
+              : <img src={poultryIcon} alt="Poultry" className="w-8 h-8" />}
             <h2 className="text-3xl font-bold text-gray-900">Disease Summary</h2>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <img
-                src={image}
-                alt="Analyzed sample"
-                className="w-full rounded-lg object-contain bg-gray-100 max-h-80"
-              />
+              <img src={image} alt="Analyzed sample" className="w-full rounded-lg object-contain bg-gray-100 max-h-80" />
             </div>
-
             <div className="flex flex-col justify-center">
               <div className="p-6 bg-red-50 border border-red-200 rounded-lg mb-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
                   <div>
                     <p className="text-sm text-red-800 mb-1">Detected Disease</p>
-                    <p className="text-3xl font-bold text-red-600 mb-2">{disease}</p>
-                    {/* <p className="text-gray-700">{fullName}</p> */}
+                    <p className="text-2xl font-bold text-red-600 mb-1 break-words">{disease || 'Unknown Disease'}</p>
+                    {confidence && <p className="text-sm text-gray-500">Confidence: {typeof confidence === 'number' ? confidence.toFixed(1) : confidence}%</p>}
+                    {severity && <p className="text-sm font-semibold text-orange-600">Severity: {severity}</p>}
                   </div>
                 </div>
               </div>
-
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Sample Type:</span>{' '}
-                  {type === 'fish' ? 'Fish' : 'Poultry'}
-                </p>
-                <p className="text-sm text-blue-800 mt-2">
-                  <span className="font-semibold">Diagnosis Date:</span> {prescription.date}
-                </p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">Sample Type:</span> {type === 'fish' ? 'Fish' : 'Poultry'}</p>
+                <p className="text-sm text-blue-800 mt-2"><span className="font-semibold">Diagnosis Date:</span> {prescription.date}</p>
               </div>
             </div>
           </div>
@@ -312,10 +297,8 @@ export function Treatment() {
               <p className="text-sm text-gray-600">Treatment ID</p>
               <p className="font-mono text-sm font-semibold text-gray-900">{treatmentData.treatment_id}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Treatment Name</p>
-              <p className="text-xl font-bold text-gray-900">{treatmentData.treatment_name}</p>
-            </div>
+            <p className="text-sm text-gray-600 mb-1">Treatment Name</p>
+            <p className="text-xl font-bold text-gray-900">{treatmentData.treatment_name}</p>
           </div>
 
           {/* Application Method */}
@@ -332,7 +315,7 @@ export function Treatment() {
             </div>
           )}
 
-          {/* Medication Details */}
+          {/* Medication */}
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="p-4 border border-gray-200 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">{requiresVeterinarian ? 'Recommendation' : 'Medication Name'}</p>
@@ -346,7 +329,7 @@ export function Treatment() {
             )}
           </div>
 
-          {/* Dosage Information */}
+          {/* Dosage */}
           <div className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-green-600 p-6 rounded-lg mb-6">
             <h3 className="font-semibold text-gray-900 mb-2">{requiresVeterinarian ? 'Professional Guidance' : 'Dosage Information'}</h3>
             <p className="text-gray-700">{treatmentData.dosage_text}</p>
@@ -363,7 +346,7 @@ export function Treatment() {
             </div>
           </div>
 
-          {/* Alternative Treatments */}
+          {/* Alternatives */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-5 h-5 text-blue-600" />
@@ -374,35 +357,47 @@ export function Treatment() {
             </div>
           </div>
 
-          {/* Treatment Protocol */}
+          {/* Reference */}
+          {treatmentData.reference && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-4 h-4 text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-500">Scientific Reference</h3>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-500 break-words">{treatmentData.reference}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Protocol */}
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <ClipboardList className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
               <div className="flex-1">
                 <h4 className="font-semibold text-gray-900 mb-2">Step-by-Step Protocol:</h4>
                 <ol className="list-decimal list-inside text-gray-700 space-y-2">
-                  {protocolSteps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
+                  {protocolSteps.map((step, i) => <li key={i}>{step}</li>)}
                 </ol>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Disclaimer */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+          <p className="text-sm text-yellow-800">
+            <strong>Important:</strong> These recommendations are for reference only and should be verified by a licensed veterinarian before administration.
+          </p>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 justify-center mb-8">
-          <button
-            onClick={handleAnalyzeAnother}
-            className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
-          >
+          <button onClick={handleAnalyzeAnother} className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg">
             Analyze Another Sample
           </button>
-          <Link
-            to={cameFromNotifications ? "/notifications" : "/selection"}
-            className="bg-gray-200 text-gray-800 px-8 py-4 rounded-lg hover:bg-gray-300 transition-colors font-semibold text-lg"
-          >
-            Back to Home
+          <Link to={cameFromNotifications ? '/notifications' : '/selection'} className="bg-gray-200 text-gray-800 px-8 py-4 rounded-lg hover:bg-gray-300 transition-colors font-semibold text-lg">
+            Back
           </Link>
         </div>
       </main>
