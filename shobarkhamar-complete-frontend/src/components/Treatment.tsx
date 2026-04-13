@@ -25,7 +25,7 @@ export function Treatment() {
     from?: string;
     type?: string;
     disease?: string;
-    fullName?: string;
+    // fullName?: string;
     treatment?: string;
     image?: string;
     diagnosisId?: string;
@@ -279,7 +279,7 @@ export function Treatment() {
                   <div>
                     <p className="text-sm text-red-800 mb-1">Detected Disease</p>
                     <p className="text-3xl font-bold text-red-600 mb-2">{disease}</p>
-                    <p className="text-gray-700">{fullName}</p>
+                    {/* <p className="text-gray-700">{fullName}</p> */}
                   </div>
                 </div>
               </div>
